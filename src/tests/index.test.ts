@@ -1,4 +1,4 @@
-import { add, sub } from "../main";
+import { add, sub } from "../index";
 
 describe("Utility | Main", () => {
   it("add - should add the given two numbers", async () => {

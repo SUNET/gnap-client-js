@@ -21,7 +21,7 @@ interface InteractionsTypes {
   };
 }
 
-export async function requestContinue(
+export async function continueRequest(
   interactions: InteractionsTypes,
   interactRef: string,
   random_generated_kid: string
