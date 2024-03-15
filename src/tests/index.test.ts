@@ -9,3 +9,15 @@ describe("Utility | Main", () => {
     expect(sub(4, 2)).toEqual(2);
   });
 });
+
+import { sayHi } from "../index";
+
+test("Returns a greeting as a string", function () {
+  // Test some stuff...
+  expect(typeof sayHi()).toBe("string");
+  expect(sayHi().includes("there")).toBe(true);
+  expect(sayHi("Merlin").includes("Merlin")).toBe(true);
+  expect(sayHi("Merlin")).toContain("Merlin");
+  expect(sayHi()).toBeTruthy();
+  expect(sayHi()).not.toHaveLength(0);
+});
