@@ -7,11 +7,24 @@ import {
   GrantRequest,
   KeyType,
   ProofMethod,
-  StartInteractionMethod,
+  InteractionStartMode,
   SubjectAssertionFormat,
 } from "./typescript-client";
 
-export async function requestAccess(
+/**
+ *
+ * Prepare and send a GrantRequest
+ *
+ * @param alg
+ * @param publicJwk
+ * @param privateKey
+ * @param nonce
+ * @param random_generated_kid
+ * @param transaction_url
+ * @param redirect_url
+ * @returns
+ */
+export async function accessRequest(
   alg: string,
   publicJwk: JWK,
   privateKey: KeyLike,
@@ -20,6 +33,9 @@ export async function requestAccess(
   transaction_url: string,
   redirect_url: string
 ) {
+  console.log("LIBRARY: accessRequest");
+
+  // TODO: Hardcoded configuration for now
   const atr: AccessTokenRequest = {
     access: [{ type: "scim-api" }, { type: "maccapi" }],
     flags: [AccessTokenFlags.BEARER],
@@ -33,6 +49,7 @@ export async function requestAccess(
     y: publicJwk.y,
   };
 
+  // TODO: Hardcoded configuration for now
   const gr: GrantRequest = {
     access_token: atr,
     client: {
@@ -42,7 +59,7 @@ export async function requestAccess(
       assertion_formats: [SubjectAssertionFormat.SAML2],
     },
     interact: {
-      start: [StartInteractionMethod.REDIRECT],
+      start: [InteractionStartMode.REDIRECT],
       finish: {
         method: FinishInteractionMethod.REDIRECT,
         uri: redirect_url,
@@ -52,7 +69,7 @@ export async function requestAccess(
   };
 
   const jwsHeader = {
-    typ: "gnap-binding+jws",
+    typ: "gnap-binding+jws", // "gnap-binding-jws"? from https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#attached-jws
     alg: alg,
     kid: random_generated_kid,
     htm: "POST",
@@ -73,6 +90,18 @@ export async function requestAccess(
     body: jws,
     method: "POST",
   };
+
+  /**
+   * From:
+   * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-requesting-access
+   * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#attached-jws
+   *
+   * The request MUST be sent as a JSON object in the content of the HTTP POST request with
+   * the Content-Type application/json. A key proofing mechanism MAY define an alternative content type,
+   * as long as the content is formed from the JSON object. For example, the attached JWS key proofing
+   * mechanism (see Section 7.3.4) places the JSON object into the payload of a JWS wrapper,
+   * which is in turn sent as the message content.
+   */
 
   const response = await fetch(transaction_url, jwsRequest);
 

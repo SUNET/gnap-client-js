@@ -10,8 +10,8 @@ import type { SubjectRequest } from "./SubjectRequest";
 import type { User } from "./User";
 
 export type GrantRequest = {
-  access_token: AccessTokenRequest | Array<AccessTokenRequest>;
-  subject?: SubjectRequest;
+  access_token?: AccessTokenRequest | Array<AccessTokenRequest>;
+  subject?: SubjectRequest; // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-requesting-subject-informati
   client: string | Client;
   user?: string | User;
   interact?: InteractionRequest;

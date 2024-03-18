@@ -1,11 +1,6 @@
 import { CompactSign, importJWK } from "jose";
 import { getSHA256Hash } from "./CryptoUtils";
-import { ContinueAccessToken, ContinueRequest, SubjectAssertion } from "./typescript-client";
-
-export interface PostContinueRequestResponse {
-  access_token: ContinueAccessToken;
-  subject: { assertions: Array<SubjectAssertion> };
-}
+import { GrantResponse, ContinueRequest } from "./typescript-client";
 
 interface InteractionsTypes {
   interact: {
@@ -21,18 +16,37 @@ interface InteractionsTypes {
   };
 }
 
+export async function isHashValid(
+  nonce: string,
+  finish: string,
+  interactRef: string,
+  transaction_url: string,
+  hashURL: string
+) {
+  console.log("LIBRARY: isHashValid");
+  try {
+    const hashBaseString = `${nonce}\n${finish}\n${interactRef}\n${transaction_url}`;
+    const hashCalculated = await getSHA256Hash(hashBaseString);
+    if (hashCalculated === hashURL) {
+      return true;
+    } else return false;
+  } catch (error) {
+    console.error("testHash error", error);
+  }
+}
+
 export async function continueRequest(
   interactions: InteractionsTypes,
   interactRef: string,
   random_generated_kid: string
-): Promise<PostContinueRequestResponse | undefined> {
+): Promise<GrantResponse | undefined> {
   try {
     if (interactions) {
       const access_token_calculated = await getSHA256Hash(interactions.continue.access_token.value);
       const continue_request: ContinueRequest = {
         interact_ref: interactRef,
       };
-      const alg = "ES256";
+      const alg = "ES256"; // TODO: Hardcoded configuration for now
       const privateJwk = JSON.parse(sessionStorage.getItem("privateKey") ?? "");
       const privateKey = await importJWK(privateJwk, alg);
 
@@ -58,7 +72,7 @@ export async function continueRequest(
         },
         body: jws,
       };
-      const response = await fetch(interactions.continue.uri, {
+      const response: Response = await fetch(interactions.continue.uri, {
         ...request,
       });
       if (response.ok) {

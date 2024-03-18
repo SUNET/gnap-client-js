@@ -37,7 +37,7 @@ export { KeyUse } from "./models/KeyUse";
 export type { Proof } from "./models/Proof";
 export { ProofMethod } from "./models/ProofMethod";
 export type { RSAJWK } from "./models/RSAJWK";
-export { StartInteractionMethod } from "./models/StartInteractionMethod";
+export { InteractionStartMode } from "./models/InteractionStartMode";
 export { Status } from "./models/Status";
 export type { StatusResponse } from "./models/StatusResponse";
 export type { SubjectAssertion } from "./models/SubjectAssertion";

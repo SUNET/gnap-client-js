@@ -5,13 +5,14 @@
 
 /**
  * An enumeration.
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-proving-possession-of-a-key
  */
 export enum ProofMethod {
-  DPOP = "dpop",
   HTTPSIGN = "httpsign",
+  MTLS = "mtls",
   JWSD = "jwsd",
   JWS = "jws",
-  MTLS = "mtls",
-  OAUTHPOP = "oauthpop",
-  TEST = "test",
+  // DPOP = "dpop", https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#appendix-A-2.14.1
+  // OAUTHPOP = "oauthpop", https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#appendix-A-2.14.1
+  // TEST = "test",
 }

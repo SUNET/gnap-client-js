@@ -3,6 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 
+/**
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#IANA-client-instance-display
+ */
+
 export type Display = {
   name?: string;
   uri?: string;
