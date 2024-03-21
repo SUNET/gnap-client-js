@@ -4,8 +4,8 @@
 /* eslint-disable */
 export { ApiError } from "./core/ApiError";
 export { CancelablePromise, CancelError } from "./core/CancelablePromise";
-export { OpenAPI } from "./core/OpenAPI";
-export type { OpenAPIConfig } from "./core/OpenAPI";
+//export { OpenAPI } from "./core/OpenAPI";
+//export type { OpenAPIConfig } from "./core/OpenAPI";
 
 export type { Access } from "./models/Access";
 export { AccessTokenFlags } from "./models/AccessTokenFlags";
