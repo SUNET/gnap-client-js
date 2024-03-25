@@ -9,7 +9,7 @@ import {
   ProofMethod,
   StartInteractionMethod,
   SubjectAssertionFormat,
-} from "./typescript-client";
+} from "../typescript-client";
 
 /**
  *

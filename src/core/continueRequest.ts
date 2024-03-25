@@ -1,6 +1,6 @@
 import { CompactSign, importJWK } from "jose";
-import { getSHA256Hash } from "./CryptoUtils";
-import { GrantResponse, ContinueRequest } from "./typescript-client";
+import { getSHA256Hash } from "../cryptoUtils";
+import { GrantResponse, ContinueRequest } from "../typescript-client";
 
 // Derive this type from GrantResponse and reinforce what it expected to receive from the server
 interface InteractionGrantResponse {
@@ -43,7 +43,7 @@ export async function continueRequest(
 ): Promise<GrantResponse | undefined> {
   try {
     if (interactions) {
-      const access_token_calculated = await getSHA256Hash(interactions.continue.access_token.value);
+      const access_token_hash = await getSHA256Hash(interactions.continue.access_token.value);
       const continue_request: ContinueRequest = {
         interact_ref: interactRef,
       };
@@ -58,7 +58,7 @@ export async function continueRequest(
         htm: "POST",
         uri: interactions.continue.uri,
         created: Date.now(),
-        ath: access_token_calculated,
+        ath: access_token_hash,
       };
 
       const jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(continue_request)))

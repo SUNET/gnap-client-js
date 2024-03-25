@@ -1,8 +1,8 @@
 export const add = (a: number, b: number) => a + b;
 export const sub = (a: number, b: number) => a - b;
 
-export { continueRequest, isHashValid } from "./continueRequest";
-export { accessRequest } from "./accessRequest";
+export { continueRequest, isHashValid } from "./core/continueRequest";
+export { accessRequest } from "./core/accessRequest";
 
 function sayHi(name = "there") {
   return `Hi ${name}!`;
@@ -11,4 +11,4 @@ function sayHi(name = "there") {
 export { sayHi };
 
 export * from "./typescript-client";
-export * from "./redirectInteraction";
+export * from "./redirect/redirectInteraction";

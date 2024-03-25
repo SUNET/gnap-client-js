@@ -1,9 +1,9 @@
 import { GenerateKeyPairOptions, exportJWK, generateKeyPair } from "jose";
-import { generateNonce } from "./CryptoUtils";
+import { generateNonce } from "../cryptoUtils";
 import { INTERACTION_RESPONSE, NONCE, RANDOM_GENERATED_KID, initSessionStorage } from "./initSessionStorage";
-import { accessRequest } from "./accessRequest";
-import { continueRequest, isHashValid } from "./continueRequest";
-import { GrantResponse } from "./typescript-client";
+import { accessRequest } from "../core/accessRequest";
+import { continueRequest, isHashValid } from "../core/continueRequest";
+import { GrantResponse } from "../typescript-client";
 
 export const REDIRECT_PATH = "/callback";
 
