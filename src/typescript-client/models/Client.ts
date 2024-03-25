@@ -1,17 +1,12 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { Display } from "./Display";
-import type { Key } from "./Key";
-
-/**
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#IANA-client-instance
- */
-
+import type { Display } from './Display';
+import type { Key_Input } from './Key_Input';
 export type Client = {
-  key: string | Key;
-  class_id?: string;
-  display?: Display;
+    key: (string | Key_Input);
+    class_id?: (string | null);
+    display?: (Display | null);
 };
+

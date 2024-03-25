@@ -1,18 +1,17 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { AccessTokenResponse } from "./AccessTokenResponse";
-import type { Continue } from "./Continue";
-import type { InteractionResponse } from "./InteractionResponse";
-import type { SubjectResponse } from "./SubjectResponse";
-
+import type { AccessTokenResponse } from './AccessTokenResponse';
+import type { Continue } from './Continue';
+import type { InteractionResponse } from './InteractionResponse';
+import type { SubjectResponse } from './SubjectResponse';
 export type GrantResponse = {
-  continue?: Continue;
-  access_token?: AccessTokenResponse;
-  interact?: InteractionResponse;
-  subject?: SubjectResponse;
-  instance_id?: string;
-  user_handle?: string;
+    continue?: (Continue | null);
+    access_token?: (AccessTokenResponse | null);
+    interact?: (InteractionResponse | null);
+    subject?: (SubjectResponse | null);
+    instance_id?: (string | null);
+    user_handle?: (string | null);
 };
+

@@ -1,14 +1,10 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-/**
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#IANA-client-instance-display
- */
-
 export type Display = {
-  name?: string;
-  uri?: string;
-  logo_uri?: string;
+    name?: (string | null);
+    uri?: (string | null);
+    logo_uri?: (string | null);
 };
+

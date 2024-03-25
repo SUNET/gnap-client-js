@@ -1,21 +1,19 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { Access } from "./Access";
-import type { AccessTokenFlags } from "./AccessTokenFlags";
-import type { Key } from "./Key";
-
+import type { AccessTokenFlags } from './AccessTokenFlags';
+import type { Key_Output } from './Key_Output';
 export type AccessTokenResponse = {
-  value: string;
-  label?: string;
-  manage?: string;
-  access?: Array<string | Access>;
-  /**
-   * seconds until expiry
-   */
-  expires_in?: number;
-  key?: string | Key;
-  flags?: Array<AccessTokenFlags>;
+    value: string;
+    label?: (string | null);
+    manage?: (string | null);
+    access?: null;
+    /**
+     * seconds until expiry
+     */
+    expires_in?: (number | null);
+    key?: (string | Key_Output | null);
+    flags?: (Array<AccessTokenFlags> | null);
 };
+

@@ -1,11 +1,10 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { Status } from "./Status";
-
+import type { Status } from './Status';
 export type StatusResponse = {
-  status: Status;
-  version?: number;
+    status: Status;
+    version?: number;
 };
+

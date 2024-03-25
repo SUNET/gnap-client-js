@@ -1,11 +1,11 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
 export { ApiError } from "./core/ApiError";
 export { CancelablePromise, CancelError } from "./core/CancelablePromise";
-//export { OpenAPI } from "./core/OpenAPI";
-//export type { OpenAPIConfig } from "./core/OpenAPI";
+//export { OpenAPI } from './core/OpenAPI';
+//export type { OpenAPIConfig } from './core/OpenAPI';
 
 export type { Access } from "./models/Access";
 export { AccessTokenFlags } from "./models/AccessTokenFlags";
@@ -29,15 +29,15 @@ export type { HTTPValidationError } from "./models/HTTPValidationError";
 export type { InteractionRequest } from "./models/InteractionRequest";
 export type { InteractionResponse } from "./models/InteractionResponse";
 export type { JWKS } from "./models/JWKS";
-export type { JWKTypes } from "./models/JWKTypes";
-export type { Key } from "./models/Key";
+export type { Key_Input } from "./models/Key_Input";
+export type { Key_Output } from "./models/Key_Output";
 export { KeyOptions } from "./models/KeyOptions";
 export { KeyType } from "./models/KeyType";
 export { KeyUse } from "./models/KeyUse";
 export type { Proof } from "./models/Proof";
 export { ProofMethod } from "./models/ProofMethod";
 export type { RSAJWK } from "./models/RSAJWK";
-export { InteractionStartMode } from "./models/InteractionStartMode";
+export { StartInteractionMethod } from "./models/StartInteractionMethod";
 export { Status } from "./models/Status";
 export type { StatusResponse } from "./models/StatusResponse";
 export type { SubjectAssertion } from "./models/SubjectAssertion";

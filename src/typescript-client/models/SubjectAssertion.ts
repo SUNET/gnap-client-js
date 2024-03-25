@@ -1,11 +1,10 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { SubjectAssertionFormat } from "./SubjectAssertionFormat";
-
+import type { SubjectAssertionFormat } from './SubjectAssertionFormat';
 export type SubjectAssertion = {
-  format: SubjectAssertionFormat;
-  value: string;
+    format: SubjectAssertionFormat;
+    value: string;
 };
+

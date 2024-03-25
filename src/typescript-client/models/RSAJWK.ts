@@ -1,31 +1,30 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { KeyOptions } from "./KeyOptions";
-import type { KeyType } from "./KeyType";
-import type { KeyUse } from "./KeyUse";
-
+import type { KeyOptions } from './KeyOptions';
+import type { KeyType } from './KeyType';
+import type { KeyUse } from './KeyUse';
 export type RSAJWK = {
-  kty: KeyType;
-  use?: KeyUse;
-  key_opts?: Array<KeyOptions>;
-  alg?: string;
-  kid?: string;
-  x5u?: string;
-  x5c?: string;
-  x5t?: string;
-  "x5t#S256"?: string;
-  d?: string;
-  n?: string;
-  e?: string;
-  p?: string;
-  q?: string;
-  dp?: string;
-  dq?: string;
-  qi?: string;
-  oth?: string;
-  r?: string;
-  t?: string;
+    kty: KeyType;
+    use?: (KeyUse | null);
+    key_opts?: (Array<KeyOptions> | null);
+    alg?: (string | null);
+    kid?: (string | null);
+    x5u?: (string | null);
+    x5c?: (string | null);
+    x5t?: (string | null);
+    'x5t#S256'?: (string | null);
+    'd'?: (string | null);
+    'n'?: (string | null);
+    'e'?: (string | null);
+    'p'?: (string | null);
+    'q'?: (string | null);
+    dp?: (string | null);
+    dq?: (string | null);
+    qi?: (string | null);
+    oth?: (string | null);
+    'r'?: (string | null);
+    't'?: (string | null);
 };
+

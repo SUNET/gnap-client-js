@@ -1,12 +1,8 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-/**
- * An enumeration.
- */
 export enum AccessTokenFlags {
-  BEARER = "bearer",
-  DURABLE = "durable",
+    BEARER = 'bearer',
+    DURABLE = 'durable',
 }

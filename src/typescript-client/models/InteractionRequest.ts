@@ -1,17 +1,13 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { FinishInteraction } from "./FinishInteraction";
-import type { Hints } from "./Hints";
-import type { InteractionStartMode } from "./InteractionStartMode";
-
-/**
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-interacting-with-the-user
- */
+import type { FinishInteraction } from './FinishInteraction';
+import type { Hints } from './Hints';
+import type { StartInteractionMethod } from './StartInteractionMethod';
 export type InteractionRequest = {
-  start: Array<string | InteractionStartMode>;
-  finish?: FinishInteraction;
-  hints?: Hints;
+    start: Array<StartInteractionMethod>;
+    finish?: (FinishInteraction | null);
+    hints?: (Hints | null);
 };
+

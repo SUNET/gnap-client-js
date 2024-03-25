@@ -1,15 +1,14 @@
-/* generated using openapi-typescript-codegen -- do no edit */
+/* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-
-import type { UserCodeURI } from "./UserCodeURI";
-
+import type { UserCodeURI } from './UserCodeURI';
 export type InteractionResponse = {
-  redirect?: string;
-  app?: string;
-  user_code?: string;
-  user_code_uri?: UserCodeURI;
-  finish?: string;
-  expires_in?: number;
+    redirect?: (string | null);
+    app?: (string | null);
+    user_code?: (string | null);
+    user_code_uri?: (UserCodeURI | null);
+    finish?: (string | null);
+    expires_in?: (number | null);
 };
+

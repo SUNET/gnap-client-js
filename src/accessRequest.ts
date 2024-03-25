@@ -7,7 +7,7 @@ import {
   GrantRequest,
   KeyType,
   ProofMethod,
-  InteractionStartMode,
+  StartInteractionMethod,
   SubjectAssertionFormat,
 } from "./typescript-client";
 
@@ -59,7 +59,7 @@ export async function accessRequest(
       assertion_formats: [SubjectAssertionFormat.SAML2],
     },
     interact: {
-      start: [InteractionStartMode.REDIRECT],
+      start: [StartInteractionMethod.REDIRECT],
       finish: {
         method: FinishInteractionMethod.REDIRECT,
         uri: redirect_url,
