@@ -2,7 +2,8 @@ import { CompactSign, importJWK } from "jose";
 import { getSHA256Hash } from "./CryptoUtils";
 import { GrantResponse, ContinueRequest } from "./typescript-client";
 
-interface InteractionsTypes {
+// Derive this type from GrantResponse and reinforce what it expected to receive from the server
+interface InteractionGrantResponse {
   interact: {
     access_token: {
       value: string;
@@ -36,7 +37,7 @@ export async function isHashValid(
 }
 
 export async function continueRequest(
-  interactions: InteractionsTypes,
+  interactions: InteractionGrantResponse,
   interactRef: string,
   random_generated_kid: string
 ): Promise<GrantResponse | undefined> {

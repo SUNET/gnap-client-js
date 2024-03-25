@@ -11,3 +11,4 @@ function sayHi(name = "there") {
 export { sayHi };
 
 export * from "./typescript-client";
+export * from "./redirectInteraction";
