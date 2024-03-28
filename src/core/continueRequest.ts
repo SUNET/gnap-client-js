@@ -1,88 +1,91 @@
-import { CompactSign, importJWK } from "jose";
+import { CompactJWSHeaderParameters, CompactSign, importJWK } from "jose";
 import { getSHA256Hash } from "../cryptoUtils";
 import { GrantResponse, ContinueRequest } from "../typescript-client";
+import { GRANT_RESPONSE, PRIVATE_KEY, RANDOM_GENERATED_KID, SessionStorage } from "../redirect/sessionStorage";
+import { attachedJWSRequest } from "./securingRequest";
+import { accessRequest } from "./accessRequest";
 
-// Derive this type from GrantResponse and reinforce what it expected to receive from the server
-interface InteractionGrantResponse {
-  interact: {
-    access_token: {
-      value: string;
-    };
-  };
-  continue: {
-    access_token: {
-      value: string;
-    };
-    uri: string;
-  };
-}
-
-export async function isHashValid(
-  nonce: string,
-  finish: string,
-  interactRef: string,
-  transaction_url: string,
-  hashURL: string
-) {
-  console.log("LIBRARY: isHashValid");
-  try {
-    const hashBaseString = `${nonce}\n${finish}\n${interactRef}\n${transaction_url}`;
-    const hashCalculated = await getSHA256Hash(hashBaseString);
-    if (hashCalculated === hashURL) {
-      return true;
-    } else return false;
-  } catch (error) {
-    console.error("testHash error", error);
-  }
-}
-
+/**
+ * 5. Continuing a Grant Request
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-continuing-a-grant-request
+ *
+ * Comment: similar to accessRequest but:
+ * - the continueUrl is not fixed, and comes from GrantResponse.continue.uri
+ * - (if request is bound to an access token)jwsHeader has one more filed "ath" access token header calculated hashing with GrantResponse.continue?.access_token.value
+ *
+ * @param sessionStorageObject
+ * @param interactRef
+ * @returns
+ */
 export async function continueRequest(
-  interactions: InteractionGrantResponse,
-  interactRef: string,
-  random_generated_kid: string
+  sessionStorageObject: SessionStorage,
+  interactRef: string
 ): Promise<GrantResponse | undefined> {
   try {
-    if (interactions) {
-      const access_token_hash = await getSHA256Hash(interactions.continue.access_token.value);
-      const continue_request: ContinueRequest = {
-        interact_ref: interactRef,
-      };
-      const alg = "ES256"; // TODO: Hardcoded configuration for now
-      const privateJwk = JSON.parse(sessionStorage.getItem("privateKey") ?? "");
-      const privateKey = await importJWK(privateJwk, alg);
+    const grantResponse = sessionStorageObject[GRANT_RESPONSE];
+    if (!grantResponse) {
+      throw new Error("No grant response found");
+    }
 
-      const jwsHeader = {
-        typ: "gnap-binding+jws",
-        alg: alg,
-        kid: random_generated_kid,
-        htm: "POST",
-        uri: interactions.continue.uri,
-        created: Date.now(),
-        ath: access_token_hash,
-      };
+    // Prepare request body continueRequest
+    const continueRequest: ContinueRequest = {
+      interact_ref: interactRef,
+    };
 
-      const jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(continue_request)))
-        .setProtectedHeader(jwsHeader)
-        .sign(privateKey);
+    // prepare alg and privateKey
+    const alg = "ES256"; // TODO: Hardcoded configuration for now
+    const privateJwk = sessionStorageObject[PRIVATE_KEY];
+    const privateKey = await importJWK(privateJwk, alg);
 
-      const request = {
-        method: "POST",
-        headers: {
-          Authorization: `GNAP ${interactions.continue.access_token.value}`,
-          "Content-Type": "application/jose+json",
-        },
-        body: jws,
-      };
-      const response: Response = await fetch(interactions.continue.uri, {
-        ...request,
-      });
-      if (response.ok) {
-        return await response.json();
-      } else {
-        throw new Error("Failed to fetch SCIM data");
-      }
+    // prepare jwsHeader
+    const random_generated_kid = sessionStorageObject[RANDOM_GENERATED_KID];
+    const accessTokenHash = await getSHA256Hash(grantResponse?.continue?.access_token?.value ?? "");
+
+    const continueUrl = grantResponse?.continue?.uri ?? "";
+
+    const jwsHeader: CompactJWSHeaderParameters = {
+      typ: "gnap-binding+jws",
+      alg: alg,
+      kid: random_generated_kid,
+      htm: "POST",
+      uri: continueUrl,
+      created: Date.now(),
+      // if there is GrantResponse.continue.access_token.value ?
+      // When the request is bound to an access token, the JOSE header MUST also include the following "ath": https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#section-7.3.3-6
+      ath: accessTokenHash,
+    };
+
+    const jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(continueRequest)))
+      .setProtectedHeader(jwsHeader)
+      .sign(privateKey);
+
+    const request = {
+      method: "POST",
+      headers: {
+        Authorization: `GNAP ${grantResponse?.continue?.access_token.value}`, // ** SPECIFIC FOR continueRequest **
+        "Content-Type": "application/jose+json",
+      },
+      body: jws,
+    };
+
+    //// const jwsRequest = await attachedJWSRequest(continueRequest, alg, privateKey, random_generated_kid, continueUrl);
+
+    // const response: Response = await fetch(grantResponse?.continue?.uri ?? "", {
+    //   ...request,
+    // });
+
+    const response: Response = await fetch(continueUrl, request);
+
+    // const response: Response = await accessRequest(continueUrl, jwsRequest);
+
+    if (response.ok) {
+      return await response.json();
+    } else {
+      throw new Error("Failed to fetch SCIM data");
     }
   } catch (error) {
+    console.error(error);
     throw new Error("error");
   }
 }
