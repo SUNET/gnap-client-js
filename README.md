@@ -8,12 +8,14 @@ Key rotation was still missing in version 10. It will be defined in version 11 h
 
 However some updates have been back-ported:
 
-- Make default hash algorithm SHA256 instead of SHA3-512. https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-19/#appendix-A-2.8.2.1.1
+- Make default hash algorithm SHA256 instead of SHA3-512. https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.9.2.1.1
 
 Some fixes have been applied to the typescript-client types extracted from the local server https://api.eduid.docker/auth/openapi.json:
 
 - AccessTokenRequest.access = null fixed to Array<string | Access>
 - commented out export OpenAPI and OpenAPIConfig in typescript-client
+
+The differences between version 10 and current last available version (v. 20) can be found in this diff: https://author-tools.ietf.org/iddiff?url1=draft-ietf-gnap-core-protocol-10&url2=draft-ietf-gnap-core-protocol-20&difftype=--html
 
 # Status of the GNAP protocol
 
@@ -30,4 +32,4 @@ Flowchart of RFC Editor Process: https://www.rfc-editor.org/about/queue/flowchar
 
 # Other implementations
 
-https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-implementation-status
+https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-implementation-status

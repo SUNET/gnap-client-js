@@ -4,8 +4,8 @@ import { GrantResponse } from "typescript-client";
 export const GRANT_RESPONSE = "GrantResponse";
 export const NONCE = "Nonce";
 export const RANDOM_GENERATED_KID = "random_generated_kid";
-export const PRIVATE_KEY = "privateKey";
-export const PUBLIC_KEY = "publicKey";
+export const PRIVATE_KEY = "PrivateKey";
+export const PUBLIC_KEY = "PublicKey";
 export const INTERACTION_EXPIRATION_TIME = "InteractionExpirationTime";
 
 export type SessionStorage = {
@@ -27,14 +27,7 @@ export type SessionStorage = {
  * @param publicJwk
  * @param privateJwk
  */
-export function setSessionStorage(
-  // gr: GrantResponse,
-  // nonce: string,
-  // random_generated_kid: string,
-  // publicJwk: JWK,
-  // privateJwk: JWK
-  sessionStorageObject: SessionStorage
-) {
+export function setSessionStorage(sessionStorageObject: SessionStorage) {
   clearSessionStorage();
   try {
     const now = new Date();
@@ -55,6 +48,7 @@ export function setSessionStorage(
 
 // SessionStorage can read only strings
 // TODO: validate the data in the session storage
+// TODO: manage the case when JSON.parse() respond with "undefined"
 export function getSessionStorage() {
   const grantResponse = JSON.parse(sessionStorage.getItem(GRANT_RESPONSE) ?? "");
   const nonce = sessionStorage.getItem(NONCE) ?? "";
@@ -62,10 +56,7 @@ export function getSessionStorage() {
   const publicKey = JSON.parse(sessionStorage.getItem(PUBLIC_KEY) ?? "");
   const privateKey = JSON.parse(sessionStorage.getItem(PRIVATE_KEY) ?? "");
   const interactionExpirationTime = sessionStorage.getItem(INTERACTION_EXPIRATION_TIME) ?? "";
-  //const arrayStorage = [grantResponse, nonce, random_generated_kid, interactionExpirationTime, publicKey, privateKey];
-  // if (arrayStorage.some((i) => i)) {
-  //   throw new Error("Error while getting interaction response from SessionStorage");
-  // }
+
   const sessionStorageObject = {
     [GRANT_RESPONSE]: grantResponse as GrantResponse,
     [NONCE]: nonce,

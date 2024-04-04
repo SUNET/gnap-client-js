@@ -24,13 +24,13 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
 } from "../typescript-client";
-import { attachedJWSRequest } from "../core/securingRequest";
+import { attachedJWSRequest } from "../core/securedRequest";
 
 /**
  * Implementation wrapper for Redirect-based Interaction
  * To be used only in web browsers
  *
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-redirect-based-interaction
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-redirect-based-interaction
  */
 
 export async function interactionStart(
@@ -46,17 +46,18 @@ export async function interactionStart(
     // Configure object to be saved in SessionStorage. Is it same as the Client object?
 
     // Prepare Grant Request
-    // TODO: Hardcoded configuration for now
+    // TODO: many hardcoded configurations for now
 
     // AccessToken
+    // Pre-configuration. Always valid?
     const atr: AccessTokenRequest = {
-      ///access: [{ type: "scim-api" }, { type: "maccapi" }],
-      access: accessArray,
+      access: accessArray, // the only configuration exposed to the user, for now
       flags: [AccessTokenFlags.BEARER],
     };
 
     // Client
     // generate key pair
+    // Pre-configuration. Always valid?
     // Pre-configured to use alg="ES256"
     const alg = "ES256";
     const gpo: GenerateKeyPairOptions = {
@@ -69,7 +70,10 @@ export async function interactionStart(
 
     const random_generated_kid = generateNonce(32);
 
-    const EllipticCurveJSONWebKey: ECJWK = {
+    // A JWK MUST contain the alg (Algorithm) and kid (Key ID) parameters. The alg parameter MUST NOT be "none".
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-key-formats
+    const ellipticCurveJwk: ECJWK = {
+      alg: alg,
       kid: random_generated_kid,
       kty: publicJwk.kty as KeyType,
       crv: publicJwk.crv,
@@ -80,16 +84,18 @@ export async function interactionStart(
     const client: Client = {
       key: {
         proof: { method: ProofMethod.JWS },
-        jwk: EllipticCurveJSONWebKey,
+        jwk: ellipticCurveJwk,
       },
     };
 
     // Subject
+    // Pre-configuration. Always valid?
     const subject: SubjectRequest = {
       assertion_formats: [SubjectAssertionFormat.SAML2],
     };
 
     // Interact
+    // This is the configuration that in practice implements the interactionStart() function
     // Generate Nonce
     const nonce = generateNonce(32);
 
@@ -98,7 +104,7 @@ export async function interactionStart(
       finish: {
         method: FinishInteractionMethod.REDIRECT,
         uri: redirectUrl,
-        nonce: nonce, // generate automatically, to be verified with "hash" query parameter from redirect
+        nonce: nonce, // to be verified with "hash" query parameter from redirect
       },
     };
 
@@ -127,7 +133,7 @@ export async function interactionStart(
         [PRIVATE_KEY]: publicJwk,
         [PUBLIC_KEY]: privateJwk,
       });
-      return response?.interact?.redirect; // TODO: if redirect flow, return redirect url. Which type of response?
+      return response?.interact?.redirect; // TODO: if redirect flow, return redirect url. Or always return the whole GrantResponse?
     }
   } catch (error) {
     console.error("error:", error);
