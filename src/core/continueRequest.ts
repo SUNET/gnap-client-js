@@ -2,6 +2,7 @@ import { importJWK, KeyLike } from "jose";
 import { GrantResponse, ContinueRequest } from "../typescript-client";
 import { GRANT_RESPONSE, PRIVATE_KEY, RANDOM_GENERATED_KID, SessionStorage } from "../redirect/sessionStorage";
 import { attachedJWSRequest } from "./securedRequest";
+import { HTTPMethods } from "../utils";
 
 /**
  * 5. Continuing a Grant Request
@@ -46,6 +47,7 @@ export async function continueRequest(
       alg,
       privateKey as KeyLike,
       random_generated_kid,
+      HTTPMethods.POST,
       continueUrl,
       access_token
     );

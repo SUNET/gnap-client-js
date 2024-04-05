@@ -25,6 +25,7 @@ import {
   SubjectRequest,
 } from "../typescript-client";
 import { attachedJWSRequest } from "../core/securedRequest";
+import { HTTPMethods } from "../utils";
 
 /**
  * Implementation wrapper for Redirect-based Interaction
@@ -118,7 +119,24 @@ export async function interactionStart(
 
     // prepare an Attached JWS Request
     // it should be triggered when grantRequest has client: {key: {proof: "jws"}}
-    const jwsRequest: RequestInit = await attachedJWSRequest(gr, alg, privateKey, random_generated_kid, transactionUrl);
+    /**
+     * From:
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-requesting-access
+     *
+     * The request MUST be sent as a JSON object in the content of the HTTP POST request with
+     * the Content-Type application/json. A key proofing mechanism MAY define an alternative content type,
+     * as long as the content is formed from the JSON object. For example, the attached JWS key proofing
+     * mechanism (see Section 7.3.4) places the JSON object into the payload of a JWS wrapper,
+     * which is in turn sent as the message content.
+     */
+    const jwsRequest: RequestInit = await attachedJWSRequest(
+      gr,
+      alg,
+      privateKey,
+      random_generated_kid,
+      HTTPMethods.POST,
+      transactionUrl
+    );
 
     const response = await accessRequest(transactionUrl, jwsRequest);
 

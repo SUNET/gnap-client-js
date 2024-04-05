@@ -1,6 +1,7 @@
 import { getSHA256Hash } from "../cryptoUtils";
 import { CompactJWSHeaderParameters, CompactSign, KeyLike } from "jose";
 import { ContinueRequest, GrantRequest } from "typescript-client";
+import { HTTPMethods } from "../utils";
 
 /**
  * 7. Securing Requests from the Client Instance
@@ -9,49 +10,61 @@ import { ContinueRequest, GrantRequest } from "typescript-client";
  *
  */
 
+/**
+ *  7.3.4. Attached JWS
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-attached-jws
+ *
+ * @param gr
+ * @param alg
+ * @param privateKey
+ * @param random_generated_kid
+ * @param htm
+ * @param transactionUrl
+ * @param access_token
+ * @returns
+ */
 export async function attachedJWSRequest(
   gr: GrantRequest | ContinueRequest, // maybe this should work for any string, could be GrantRequest or ContinueRequest
   alg: string,
   privateKey: KeyLike,
   random_generated_kid: string,
+  htm: HTTPMethods, // for example "POST"
   transactionUrl: string,
   access_token?: string // if the gr is bound to an access token
 ): Promise<RequestInit> {
-  /**
-   * From:
-   * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-requesting-access
-   * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-attached-jws
-   *
-   * The request MUST be sent as a JSON object in the content of the HTTP POST request with
-   * the Content-Type application/json. A key proofing mechanism MAY define an alternative content type,
-   * as long as the content is formed from the JSON object. For example, the attached JWS key proofing
-   * mechanism (see Section 7.3.4) places the JSON object into the payload of a JWS wrapper,
-   * which is in turn sent as the message content.
-   */
-
-  // Prepare the JWS Header by reading from the Grant Request??
+  //TODO: Prepare the JWS Header by reading from the Grant Request??
   const jwsHeader: CompactJWSHeaderParameters = {
     typ: "gnap-binding+jws", // "gnap-binding-jws" from version 19: Updated JOSE types to no longer use subtypes  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.2.2.2.1
     alg: alg,
     kid: random_generated_kid,
-    htm: "POST", // "POST" linked in jwsRequest method
+    htm: htm, // linked in jwsRequest method
     uri: transactionUrl,
     created: Date.now(),
   };
 
   // When the request is bound to an access token, the JOSE header MUST also include the following:
-  //  ath (string): The hash of the access token. The value MUST be the result of Base64url encoding (with no padding) the SHA-256 digest of the ASCII encoding of the associated access token's value.
+  //    ath (string): The hash of the access token. The value MUST be the result of Base64url encoding (with no padding) the SHA-256 digest of the ASCII encoding of the associated access token's value.
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-7.2.1
   if (access_token) {
     const accessTokenHash = await getSHA256Hash(access_token);
     jwsHeader.ath = accessTokenHash;
   }
 
+  let jws;
   // If the HTTP request has content, such as an HTTP POST or PUT method, the payload of the JWS object is the JSON serialized content of the request, and the object is signed according to JWS and serialized into compact form [RFC7515].
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-8
-  const jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(gr)))
-    .setProtectedHeader(jwsHeader)
-    .sign(privateKey);
+  if (htm === HTTPMethods.POST || htm === HTTPMethods.PUT) {
+    jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(gr)))
+      .setProtectedHeader(jwsHeader)
+      .sign(privateKey);
+  } else {
+    // If the request being made does not have content, such as an HTTP GET, OPTIONS, or DELETE method,
+    // the JWS signature is calculated over an empty payload and passed in the Detached-JWS header as described in Section 7.3.3.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-7.3.4-9
+    jws = await new CompactSign(new TextEncoder().encode(JSON.stringify("")))
+      .setProtectedHeader(jwsHeader)
+      .sign(privateKey);
+  }
 
   // Prepare the fetch request
   // "The signer presents the JWS as the content of the request along with a content type of application/jose." https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-8
@@ -69,7 +82,7 @@ export async function attachedJWSRequest(
   const jwsRequest: RequestInit = {
     headers: headers,
     body: jws,
-    method: "POST", // "POST" linked in jwsHeader
+    method: htm, // linked in jwsHeader
   };
 
   return jwsRequest;
