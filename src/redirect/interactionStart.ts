@@ -1,6 +1,7 @@
 import { GenerateKeyPairOptions, exportJWK, generateKeyPair } from "jose";
 import { generateNonce } from "../cryptoUtils";
 import {
+  ALGORITHM,
   GRANT_RESPONSE,
   NONCE,
   PRIVATE_KEY,
@@ -8,7 +9,7 @@ import {
   RANDOM_GENERATED_KID,
   setSessionStorage,
 } from "./sessionStorage";
-import { accessRequest } from "../core/accessRequest";
+import { transactionRequest } from "../core/transactionRequest";
 import {
   Access,
   AccessTokenFlags,
@@ -24,7 +25,7 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
 } from "../typescript-client";
-import { attachedJWSRequest } from "../core/securedRequest";
+import { attachedJWSRequestInit } from "../core/securedRequest";
 import { HTTPMethods } from "../utils";
 
 /**
@@ -58,8 +59,7 @@ export async function interactionStart(
 
     // Client
     // generate key pair
-    // Pre-configuration. Always valid?
-    // Pre-configured to use alg="ES256"
+    // Pre-configuration/hardcoded to use alg="ES256". Always valid?
     const alg = "ES256";
     const gpo: GenerateKeyPairOptions = {
       crv: "25519",
@@ -117,7 +117,7 @@ export async function interactionStart(
       interact: interact,
     };
 
-    // prepare an Attached JWS Request
+    // Secured request with an Attached JWS Request
     // it should be triggered when grantRequest has client: {key: {proof: "jws"}}
     /**
      * From:
@@ -129,7 +129,7 @@ export async function interactionStart(
      * mechanism (see Section 7.3.4) places the JSON object into the payload of a JWS wrapper,
      * which is in turn sent as the message content.
      */
-    const jwsRequest: RequestInit = await attachedJWSRequest(
+    const jwsRequestInit: RequestInit = await attachedJWSRequestInit(
       gr,
       alg,
       privateKey,
@@ -138,20 +138,26 @@ export async function interactionStart(
       transactionUrl
     );
 
-    const response = await accessRequest(transactionUrl, jwsRequest);
+    const response = await transactionRequest(transactionUrl, jwsRequestInit);
+
+    // TODO: possibly here there should be a check for which kind of response has been received from the AS.
+    // there could be error or there could be a request from AS that the client is not prepared to handle.
 
     // ROUTING the flow: There there should be controls to check which kind of response is returned.
     // If there is fields that signify "Interact", then go for it
-    if (response && Object.keys(response).length > 0) {
+    if (response?.interact?.redirect) {
       // Save in sessionStorage and redirect
       setSessionStorage({
         [GRANT_RESPONSE]: response,
         [NONCE]: nonce,
         [RANDOM_GENERATED_KID]: random_generated_kid,
+        [ALGORITHM]: alg,
         [PRIVATE_KEY]: publicJwk,
         [PUBLIC_KEY]: privateJwk,
       });
       return response?.interact?.redirect; // TODO: if redirect flow, return redirect url. Or always return the whole GrantResponse?
+    } else {
+      throw Error("Error: No redirect url found in response");
     }
   } catch (error) {
     console.error("error:", error);

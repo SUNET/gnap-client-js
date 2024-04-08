@@ -2,7 +2,7 @@ export const add = (a: number, b: number) => a + b;
 export const sub = (a: number, b: number) => a - b;
 
 export { continueRequest } from "./core/continueRequest";
-export { accessRequest } from "./core/accessRequest";
+export { transactionRequest } from "./core/transactionRequest";
 
 function sayHi(name = "there") {
   return `Hi ${name}!`;

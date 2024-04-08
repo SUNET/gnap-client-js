@@ -1,17 +1,24 @@
 import { importJWK, KeyLike } from "jose";
 import { GrantResponse, ContinueRequest } from "../typescript-client";
-import { GRANT_RESPONSE, PRIVATE_KEY, RANDOM_GENERATED_KID, SessionStorage } from "../redirect/sessionStorage";
-import { attachedJWSRequest } from "./securedRequest";
+import {
+  ALGORITHM,
+  GRANT_RESPONSE,
+  PRIVATE_KEY,
+  RANDOM_GENERATED_KID,
+  SessionStorage,
+} from "../redirect/sessionStorage";
+import { attachedJWSRequestInit } from "./securedRequest";
 import { HTTPMethods } from "../utils";
+import { transactionRequest } from "./transactionRequest";
 
 /**
  * 5. Continuing a Grant Request
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-continuing-a-grant-request
  *
- * Comment: similar to accessRequest but:
- * - the continueUrl is not fixed, and comes from GrantResponse.continue.uri
- * - (if request is bound to an access token)jwsHeader has one more filed "ath" access token header calculated hashing with GrantResponse.continue?.access_token.value
+ * Comment: similar to transactionRequest but:
+ * - the continueUrl is not fixes, it is decided by the AS, and comes from GrantResponse.continue.uri
+ * - (if request is bound to an access token) jwsHeader needs to have one more felt "ath" access token header calculated hashing with GrantResponse.continue.access_token.value
  *
  * @param sessionStorageObject
  * @param interactRef
@@ -32,38 +39,41 @@ export async function continueRequest(
       interact_ref: interactRef,
     };
 
-    // prepare alg and retrieve privateKey
-    const alg = "ES256"; // TODO: Hardcoded configuration for now
+    // retrieve alg and privateKey
+    const alg = sessionStorageObject[ALGORITHM];
     const privateJwk = sessionStorageObject[PRIVATE_KEY];
     const privateKey = await importJWK(privateJwk, alg);
 
     // prepare jwsHeader
     const random_generated_kid = sessionStorageObject[RANDOM_GENERATED_KID];
     const continueUrl = grantResponse?.continue?.uri ?? "";
+
+    // if access_token is "bound" then send it to attachedJWSRequestInit() so that it can be calculate and add "ath" in the jwsHeader
+    // if (grantResponse.continue?.access_token.bound) {
+    //   attachedJWSRequestInit(..., grantResponse?.continue?.access_token?.value)
+    // } else {
+    //   attachedJWSRequestInit(...)
+    // }
     const access_token = grantResponse?.continue?.access_token?.value ?? "";
 
-    const request = await attachedJWSRequest(
+    const requestInit: RequestInit = await attachedJWSRequestInit(
       continueRequest,
       alg,
       privateKey as KeyLike,
       random_generated_kid,
-      HTTPMethods.POST,
+      HTTPMethods.POST, // is it always POST?
       continueUrl,
       access_token
     );
 
     // add Authorization header, as required from https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.2-4
-    request.headers = { ...request.headers, ...{ Authorization: `GNAP ${access_token}` } };
+    requestInit.headers = { ...requestInit.headers, ...{ Authorization: `GNAP ${access_token}` } };
 
-    const response: Response = await fetch(continueUrl, request);
+    const response = await transactionRequest(continueUrl, requestInit);
 
-    if (response.ok) {
-      return await response.json();
-    } else {
-      throw new Error("Failed to fetch SCIM data");
-    }
+    return response;
   } catch (error) {
-    console.error(error);
-    throw new Error("error");
+    console.error("continueRequest Error", error);
+    throw new Error("continueRequest Error");
   }
 }

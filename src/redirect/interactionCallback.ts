@@ -42,29 +42,31 @@ export async function isHashValid(
  * @returns
  */
 export async function interactionCallback(transactionUrl: string): Promise<GrantResponse | undefined> {
-  //TODO: if sessionStorageObject is empty, throw error
-  const sessionStorageObject = getSessionStorage();
+  try {
+    //TODO: if sessionStorageObject is empty, throw error
+    const sessionStorageObject = getSessionStorage();
 
-  // Get "finish" from sessionStorage
-  const finish = sessionStorageObject[GRANT_RESPONSE].interact?.finish ?? "";
+    // Get "finish" from sessionStorage
+    const finish = sessionStorageObject[GRANT_RESPONSE].interact?.finish ?? "";
 
-  // Get "hash" and "interact_ref" from URL query parameters
-  const searchParams = new URLSearchParams(window.location.search);
-  const hashURL = searchParams.get("hash") ?? "";
-  const interactRef = searchParams.get("interact_ref") ?? "";
+    // Get "hash" and "interact_ref" from URL query parameters
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashURL = searchParams.get("hash") ?? "";
+    const interactRef = searchParams.get("interact_ref") ?? "";
 
-  if (sessionStorageObject[GRANT_RESPONSE] && interactRef) {
-    try {
-      const hashResult = await isHashValid(sessionStorageObject[NONCE], finish, interactRef, transactionUrl, hashURL);
-      if (!hashResult) {
-        throw new Error("Invalid hash");
-      }
-      const response = await continueRequest(sessionStorageObject, interactRef);
-      clearSessionStorage();
-      return response;
-    } catch (error) {
-      console.error("error:", error);
-      throw error;
+    if (!sessionStorageObject[GRANT_RESPONSE] || !interactRef) {
+      throw new Error("Error reading GrandResponse or missing interactRef");
     }
+
+    const isValid = await isHashValid(sessionStorageObject[NONCE], finish, interactRef, transactionUrl, hashURL);
+    if (!isValid) {
+      throw new Error("Invalid hash");
+    }
+    const response = await continueRequest(sessionStorageObject, interactRef);
+    clearSessionStorage();
+    return response;
+  } catch (error) {
+    console.error("error:", error);
+    throw error;
   }
 }
