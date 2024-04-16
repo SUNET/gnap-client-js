@@ -4,8 +4,6 @@ Written in Javascript and Typescript. Types are exported and available to be use
 
 In sync with the backend implementation https://github.com/SUNET/sunet-auth-server, gnap-client-js is implemented using as a reference the draft #10 of the GNAP protocol https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-10
 
-Key rotation was still missing in version 10. It will be defined in version 11 https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.10.2.2.1
-
 However some updates have been back-ported:
 
 - Make default hash algorithm SHA256 instead of SHA3-512. https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.9.2.1.1
@@ -33,3 +31,12 @@ Flowchart of RFC Editor Process: https://www.rfc-editor.org/about/queue/flowchar
 # Other implementations
 
 https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-implementation-status
+
+# References
+
+GNAP: https://datatracker.ietf.org/wg/gnap/documents/
+JOSE: https://datatracker.ietf.org/wg/jose/documents/
+JSON Web Signature (JWS): https://datatracker.ietf.org/doc/html/rfc7515
+Media Types: https://www.iana.org/assignments/media-types/media-types.xhtml
+Named Information Hash Algorithm Registry: https://www.iana.org/assignments/named-information/named-information.xhtml
+JOSE Javascript: https://github.com/panva/jose

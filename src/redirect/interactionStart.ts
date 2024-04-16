@@ -1,14 +1,6 @@
-import { GenerateKeyPairOptions, exportJWK, generateKeyPair } from "jose";
+import { GenerateKeyPairOptions, JWK, exportJWK, generateKeyPair, importJWK } from "jose";
 import { generateNonce } from "../cryptoUtils";
-import {
-  ALGORITHM,
-  GRANT_RESPONSE,
-  NONCE,
-  PRIVATE_KEY,
-  PUBLIC_KEY,
-  RANDOM_GENERATED_KID,
-  setSessionStorage,
-} from "./sessionStorage";
+import { ALGORITHM, GRANT_RESPONSE, NONCE, PRIVATE_KEY, PUBLIC_KEY, KEY_ID, setSessionStorage } from "./sessionStorage";
 import { transactionRequest } from "../core/transactionRequest";
 import {
   Access,
@@ -25,8 +17,9 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
 } from "../typescript-client";
-import { attachedJWSRequestInit } from "../core/securedRequest";
+import { attachedJWSRequestInit, detachedJWSRequestInit } from "../core/securedRequest";
 import { HTTPMethods } from "../utils";
+import { KeyLike } from "crypto";
 
 /**
  * Implementation wrapper for Redirect-based Interaction
@@ -54,6 +47,12 @@ export async function interactionStart(
     // Pre-configuration. Always valid?
     const atr: AccessTokenRequest = {
       access: accessArray, // the only configuration exposed to the user, for now
+      // If this flag is included, the access token being requested is a bearer token. If this flag is omitted,
+      // the access token is bound to the key used by the client instance in this request (or that key's most
+      // recent rotation) and the access token MUST be presented using the same key and proofing method. Methods
+      // for presenting bound and bearer access tokens are described in Section 7.2. See Section 13.9 for additional
+      // considerations on the use of bearer tokens.
+      // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-2.1.1-4.2.1
       flags: [AccessTokenFlags.BEARER],
     };
 
@@ -82,12 +81,54 @@ export async function interactionStart(
       y: publicJwk.y,
     };
 
+    // THE SHARED KEY? - "eduid_managed_accounts_1"
+    // const privateKeyDetached: ECJWK = {
+    //   alg: alg,
+    //   kty: KeyType.EC,
+    //   kid: "eduid_managed_accounts_1",
+    //   crv: "P-256",
+    //   x: "dCxVL9thTTc-ZtiL_CrPpMp1Vqo2p_gUVqiVBRwqjq8",
+    //   y: "P3dAvr2IYy7DQEf4vA5bPN8gCg41M1oA5993vHr9peE",
+    //   d: "i9hH9BeErxtI40b0_1P4XR6CXra4itKvg8ccLrxXrhQ",
+    // };
+
+    // const publicKeyDetached: ECJWK = {
+    //   alg: alg,
+    //   kty: KeyType.EC,
+    //   kid: "eduid_managed_accounts_1",
+    //   crv: "P-256",
+    //   x: "dCxVL9thTTc-ZtiL_CrPpMp1Vqo2p_gUVqiVBRwqjq8",
+    //   y: "P3dAvr2IYy7DQEf4vA5bPN8gCg41M1oA5993vHr9peE",
+    //   //d: "i9hH9BeErxtI40b0_1P4XR6CXra4itKvg8ccLrxXrhQ",
+    // };
+
+    // const privateKeyDetached: ECJWK = { ...publicKeyDetached, d: "i9hH9BeErxtI40b0_1P4XR6CXra4itKvg8ccLrxXrhQ" };
+    // const key = await importJWK(privateKeyDetached as JWK, alg);
+
+    // configuration for an Attached JWS
+    //  7.3. Proving Possession of a Key with a Request
+    //  7.3.4. Attached JWS
     const client: Client = {
       key: {
         proof: { method: ProofMethod.JWS },
         jwk: ellipticCurveJwk,
       },
     };
+
+    //  7.1.1. Key References
+    // Keys in GNAP can also be passed by reference such that the party receiving the reference will
+    // be able to determine the appropriate keying material for use in that part of the protocol.
+    // Key references are a single opaque string.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-key-references
+    // const client: Client = { key: "eduid_managed_accounts_1" };
+
+    // configuration for a Detached JWS
+    // const client: Client = {
+    //   key: {
+    //     proof: { method: ProofMethod.JWSD },
+    //     jwk: publicKeyDetached,
+    //   },
+    // };
 
     // Subject
     // Pre-configuration. Always valid?
@@ -100,12 +141,20 @@ export async function interactionStart(
     // Generate Nonce
     const nonce = generateNonce(32);
 
+    //  2.5.2.2. Receive an HTTP Direct Callback
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-receive-an-http-callback-th
     const interact: InteractionRequest = {
       start: [StartInteractionMethod.REDIRECT],
       finish: {
         method: FinishInteractionMethod.REDIRECT,
         uri: redirectUrl,
         nonce: nonce, // to be verified with "hash" query parameter from redirect
+        //  hash_method (string):
+        // An identifier of a hash calculation mechanism to be used for the callback hash in Section 4.2.3,
+        // as defined in the IANA Named Information Hash Algorithm Registry [HASH-ALG]. If absent,
+        // the default value is sha-256. OPTIONAL.
+        // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-2.5.2-2.8.1
+        // https://www.iana.org/assignments/named-information/named-information.xhtml#hash-alg
       },
     };
 
@@ -150,10 +199,10 @@ export async function interactionStart(
       setSessionStorage({
         [GRANT_RESPONSE]: response,
         [NONCE]: nonce,
-        [RANDOM_GENERATED_KID]: random_generated_kid,
-        [ALGORITHM]: alg,
-        [PRIVATE_KEY]: publicJwk,
-        [PUBLIC_KEY]: privateJwk,
+        [KEY_ID]: random_generated_kid,
+        [ALGORITHM]: alg, // is it necessary if "alg" is mandatory in the JWT?
+        [PRIVATE_KEY]: privateJwk,
+        [PUBLIC_KEY]: publicJwk,
       });
       return response?.interact?.redirect; // TODO: if redirect flow, return redirect url. Or always return the whole GrantResponse?
     } else {

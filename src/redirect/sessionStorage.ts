@@ -3,7 +3,7 @@ import { GrantResponse } from "typescript-client";
 
 export const GRANT_RESPONSE = "GrantResponse";
 export const NONCE = "Nonce";
-export const RANDOM_GENERATED_KID = "random_generated_kid";
+export const KEY_ID = "KeyID";
 export const ALGORITHM = "Algorithm"; // key alg
 export const PRIVATE_KEY = "PrivateKey";
 export const PUBLIC_KEY = "PublicKey";
@@ -12,7 +12,7 @@ export const INTERACTION_EXPIRATION_TIME = "InteractionExpirationTime";
 export type SessionStorage = {
   [GRANT_RESPONSE]: GrantResponse;
   [NONCE]: string;
-  [RANDOM_GENERATED_KID]: string;
+  [KEY_ID]: string;
   [ALGORITHM]: string;
   [PRIVATE_KEY]: JWK;
   [PUBLIC_KEY]: JWK;
@@ -34,7 +34,7 @@ export function setSessionStorage(sessionStorageObject: SessionStorage) {
     const InteractionExpirationTime = new Date(now.getTime() + expiresInMilliseconds).getTime();
     sessionStorage.setItem(GRANT_RESPONSE, JSON.stringify(sessionStorageObject[GRANT_RESPONSE]));
     sessionStorage.setItem(NONCE, sessionStorageObject[NONCE]);
-    sessionStorage.setItem(RANDOM_GENERATED_KID, sessionStorageObject[RANDOM_GENERATED_KID]);
+    sessionStorage.setItem(KEY_ID, sessionStorageObject[KEY_ID]);
     sessionStorage.setItem(ALGORITHM, sessionStorageObject[ALGORITHM]);
     sessionStorage.setItem(PUBLIC_KEY, JSON.stringify(sessionStorageObject[PUBLIC_KEY]));
     sessionStorage.setItem(PRIVATE_KEY, JSON.stringify(sessionStorageObject[PRIVATE_KEY]));
@@ -51,7 +51,7 @@ export function setSessionStorage(sessionStorageObject: SessionStorage) {
 export function getSessionStorage() {
   const grantResponse = JSON.parse(sessionStorage.getItem(GRANT_RESPONSE) ?? "");
   const nonce = sessionStorage.getItem(NONCE) ?? "";
-  const random_generated_kid = sessionStorage.getItem(RANDOM_GENERATED_KID) ?? "";
+  const random_generated_kid = sessionStorage.getItem(KEY_ID) ?? "";
   const algorithm = sessionStorage.getItem(ALGORITHM) ?? "";
   const publicKey = JSON.parse(sessionStorage.getItem(PUBLIC_KEY) ?? "");
   const privateKey = JSON.parse(sessionStorage.getItem(PRIVATE_KEY) ?? "");
@@ -60,10 +60,10 @@ export function getSessionStorage() {
   const sessionStorageObject = {
     [GRANT_RESPONSE]: grantResponse as GrantResponse,
     [NONCE]: nonce,
-    [RANDOM_GENERATED_KID]: random_generated_kid,
+    [KEY_ID]: random_generated_kid,
     [ALGORITHM]: algorithm,
-    [PRIVATE_KEY]: publicKey,
-    [PUBLIC_KEY]: privateKey,
+    [PRIVATE_KEY]: privateKey,
+    [PUBLIC_KEY]: publicKey,
     [INTERACTION_EXPIRATION_TIME]: interactionExpirationTime,
   };
   return sessionStorageObject;
@@ -73,7 +73,7 @@ export function clearSessionStorage() {
   const keysInSessionStorage = [
     GRANT_RESPONSE,
     NONCE,
-    RANDOM_GENERATED_KID,
+    KEY_ID,
     ALGORITHM,
     PUBLIC_KEY,
     PRIVATE_KEY,

@@ -1,12 +1,6 @@
 import { importJWK, KeyLike } from "jose";
 import { GrantResponse, ContinueRequest } from "../typescript-client";
-import {
-  ALGORITHM,
-  GRANT_RESPONSE,
-  PRIVATE_KEY,
-  RANDOM_GENERATED_KID,
-  SessionStorage,
-} from "../redirect/sessionStorage";
+import { ALGORITHM, GRANT_RESPONSE, PRIVATE_KEY, KEY_ID, SessionStorage } from "../redirect/sessionStorage";
 import { attachedJWSRequestInit } from "./securedRequest";
 import { HTTPMethods } from "../utils";
 import { transactionRequest } from "./transactionRequest";
@@ -45,7 +39,7 @@ export async function continueRequest(
     const privateKey = await importJWK(privateJwk, alg);
 
     // prepare jwsHeader
-    const random_generated_kid = sessionStorageObject[RANDOM_GENERATED_KID];
+    const random_generated_kid = sessionStorageObject[KEY_ID];
     const continueUrl = grantResponse?.continue?.uri ?? "";
 
     // if access_token is "bound" then send it to attachedJWSRequestInit() so that it can be calculate and add "ath" in the jwsHeader
