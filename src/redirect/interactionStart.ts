@@ -17,9 +17,8 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
 } from "../typescript-client";
-import { attachedJWSRequestInit, detachedJWSRequestInit } from "../core/securedRequest";
+import { JWSRequestInit } from "../core/securedRequest";
 import { HTTPMethods } from "../utils";
-import { KeyLike } from "crypto";
 
 /**
  * Implementation wrapper for Redirect-based Interaction
@@ -70,6 +69,9 @@ export async function interactionStart(
 
     const random_generated_kid = generateNonce(32);
 
+    /**
+     *  configuration for an Attached JWS
+     */
     // A JWK MUST contain the alg (Algorithm) and kid (Key ID) parameters. The alg parameter MUST NOT be "none".
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-key-formats
     const ellipticCurveJwk: ECJWK = {
@@ -81,17 +83,19 @@ export async function interactionStart(
       y: publicJwk.y,
     };
 
-    // THE SHARED KEY? - "eduid_managed_accounts_1"
-    // const privateKeyDetached: ECJWK = {
-    //   alg: alg,
-    //   kty: KeyType.EC,
-    //   kid: "eduid_managed_accounts_1",
-    //   crv: "P-256",
-    //   x: "dCxVL9thTTc-ZtiL_CrPpMp1Vqo2p_gUVqiVBRwqjq8",
-    //   y: "P3dAvr2IYy7DQEf4vA5bPN8gCg41M1oA5993vHr9peE",
-    //   d: "i9hH9BeErxtI40b0_1P4XR6CXra4itKvg8ccLrxXrhQ",
-    // };
+    //  7.3. Proving Possession of a Key with a Request
+    //  7.3.4. Attached JWS
+    const client: Client = {
+      key: {
+        proof: { method: ProofMethod.JWS },
+        jwk: ellipticCurveJwk,
+      },
+    };
 
+    // /**
+    //  *  configuration for an Detached JWS
+    //  * - test account in config.
+    //  */
     // const publicKeyDetached: ECJWK = {
     //   alg: alg,
     //   kty: KeyType.EC,
@@ -105,15 +109,13 @@ export async function interactionStart(
     // const privateKeyDetached: ECJWK = { ...publicKeyDetached, d: "i9hH9BeErxtI40b0_1P4XR6CXra4itKvg8ccLrxXrhQ" };
     // const key = await importJWK(privateKeyDetached as JWK, alg);
 
-    // configuration for an Attached JWS
-    //  7.3. Proving Possession of a Key with a Request
-    //  7.3.4. Attached JWS
-    const client: Client = {
-      key: {
-        proof: { method: ProofMethod.JWS },
-        jwk: ellipticCurveJwk,
-      },
-    };
+    // // configuration for a Detached JWS
+    // const client: Client = {
+    //   key: {
+    //     proof: { method: ProofMethod.JWSD },
+    //     jwk: publicKeyDetached,
+    //   },
+    // };
 
     //  7.1.1. Key References
     // Keys in GNAP can also be passed by reference such that the party receiving the reference will
@@ -121,14 +123,6 @@ export async function interactionStart(
     // Key references are a single opaque string.
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-key-references
     // const client: Client = { key: "eduid_managed_accounts_1" };
-
-    // configuration for a Detached JWS
-    // const client: Client = {
-    //   key: {
-    //     proof: { method: ProofMethod.JWSD },
-    //     jwk: publicKeyDetached,
-    //   },
-    // };
 
     // Subject
     // Pre-configuration. Always valid?
@@ -178,7 +172,8 @@ export async function interactionStart(
      * mechanism (see Section 7.3.4) places the JSON object into the payload of a JWS wrapper,
      * which is in turn sent as the message content.
      */
-    const jwsRequestInit: RequestInit = await attachedJWSRequestInit(
+    const requestInit: RequestInit = await JWSRequestInit(
+      ProofMethod.JWS,
       gr,
       alg,
       privateKey,
@@ -187,7 +182,7 @@ export async function interactionStart(
       transactionUrl
     );
 
-    const response = await transactionRequest(transactionUrl, jwsRequestInit);
+    const response = await transactionRequest(transactionUrl, requestInit);
 
     // TODO: possibly here there should be a check for which kind of response has been received from the AS.
     // there could be error or there could be a request from AS that the client is not prepared to handle.

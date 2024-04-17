@@ -1,6 +1,6 @@
 import { getSHA256Hash } from "../cryptoUtils";
 import { CompactJWSHeaderParameters, CompactSign, KeyLike, JWK, importJWK } from "jose";
-import { ContinueRequest, GrantRequest } from "typescript-client";
+import { ContinueRequest, GrantRequest, ProofMethod } from "../typescript-client";
 import { HTTPMethods } from "../utils";
 
 /**
@@ -8,6 +8,16 @@ import { HTTPMethods } from "../utils";
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-securing-requests-from-the-
  *
+ */
+
+/**
+ * 7.3. Proving Possession of a Key with a Request
+ *
+ * Any keys presented by the client instance to the AS or RS MUST be validated as part of the request in which they are presented.
+ * The type of binding used is indicated by the proof parameter of the key object in Section 7.1. Key proof methods are specified
+ * either by a string, which consists of the key proof method name on its own, or by a JSON object with the required field method
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-proving-possession-of-a-key
  */
 
 /**
@@ -23,7 +33,8 @@ import { HTTPMethods } from "../utils";
  * @param access_token
  * @returns
  */
-export async function attachedJWSRequestInit(
+export async function JWSRequestInit(
+  jwsType: ProofMethod,
   body: GrantRequest | ContinueRequest, // maybe this should work for any string, could be GrantRequest or ContinueRequest
   alg: string,
   privateKey: KeyLike | Uint8Array, // same type as JOSE sign() argument
@@ -32,9 +43,17 @@ export async function attachedJWSRequestInit(
   transactionUrl: string,
   access_token?: string // if the grant request is bound to an access token
 ): Promise<RequestInit> {
+  // validate JWS "type":
+  if (jwsType !== ProofMethod.JWS && jwsType !== ProofMethod.JWSD) throw new Error("JWSRequestInit: invalid type");
+
+  // set right typ for the jwsHeader
+  let typ;
+  if (jwsType === ProofMethod.JWS) typ = "gnap-binding+jws"; // "gnap-binding-jws" from version 19: Updated JOSE types to no longer use subtypes  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.2.2.2.1
+  if (jwsType === ProofMethod.JWSD) typ = "gnap-binding+jwsd";
+
   //TODO: Prepare the JWS Header by reading from the Grant Request / Response??
   const jwsHeader: CompactJWSHeaderParameters = {
-    typ: "gnap-binding+jws", // "gnap-binding-jws" from version 19: Updated JOSE types to no longer use subtypes  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.2.2.2.1
+    typ: typ,
     alg: alg,
     kid: kid,
     htm: htm, // linked in jwsRequest method
@@ -72,109 +91,51 @@ export async function attachedJWSRequestInit(
   // "The signer presents the JWS as the content of the request along with a content type of application/jose."
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-8
   // "application/jose" vs "application/jose+json" https://www.rfc-editor.org/rfc/rfc7515.html#section-9.2.1
-  const headers: HeadersInit = {
+  let headers: HeadersInit = {
     "Content-Type": "application/jose+json", // or should it be "application/jose" ?
   };
 
+  if (jwsType === ProofMethod.JWSD) {
+    /**
+     *  HERE: JWSD is like JWS without the payload
+     *
+     * Appendix F.  Detached Content
+     *
+     * One way to do this is to create a JWS
+     * in the normal fashion using a representation of the content as the
+     * payload but then delete the payload representation from the JWS and
+     * send this modified object to the recipient rather than the JWS.  When
+     * using the JWS Compact Serialization, the deletion is accomplished by
+     * replacing the second field (which contains BASE64URL(JWS Payload))
+     * value with the empty string
+     *
+     * https://datatracker.ietf.org/doc/html/rfc7515/#appendix-F
+     */
+    console.log("DETACHED JWS", jws);
+    const jwsParts = jws.split(".");
+    const jwsdHeader = jwsParts[0] + ".." + jwsParts[2];
+    console.log("DETACHED JWS", jwsdHeader);
+    // The signer presents the signed object in compact form [RFC7515] in the Detached-JWS HTTP Header field.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-9
+    headers = { ...headers, "Detached-JWS": jwsdHeader };
+  }
+
   if (access_token) {
     const accessTokenHash = await getSHA256Hash(access_token);
     jwsHeader.ath = accessTokenHash;
   }
 
+  // Modify request payload based on if it is JWS or JWSD
+  let payload;
+  if (jwsType === ProofMethod.JWS) payload = jws;
+  if (jwsType === ProofMethod.JWSD) payload = JSON.stringify(body); // original body
+
   // request calculated by reading Grant Request??
-  const jwsRequestInit: RequestInit = {
-    headers: headers,
-    body: jws,
+  const requestInit: RequestInit = {
+    headers: headers, // header with JWS signature or Detached-JWS
+    body: payload,
     method: htm, // linked in jwsHeader
   };
 
-  return jwsRequestInit;
-}
-
-/**
- * With Detached JWS!!
- * Inherit from attached JWSRequestInit and to proper changes to:
- *  - typ: "gnap-binding+jwsd"
- *  - strip body payload from jws
- *
- * Detached JWS is a variation of JWS that allows the signing of content (body) of
- * HTTP requests or responses without its modification. Turn the middle part of a JWS
- * into an empty string to create a detached JWS.
- *
- * @param body
- * @param alg
- * @param privateKey
- * @param kid
- * @param htm
- * @param transactionUrl
- * @param access_token
- * @returns
- */
-export async function detachedJWSRequestInit(
-  body: GrantRequest | ContinueRequest, // maybe this should work for any string, could be GrantRequest or ContinueRequest
-  alg: string,
-  key: KeyLike | Uint8Array, // same type as JOSE sign() argument
-  kid: string,
-  htm: HTTPMethods, // for example "POST"
-  transactionUrl: string,
-  access_token?: string // if the grant request is bound to an access token
-): Promise<RequestInit> {
-  const jwsHeader: CompactJWSHeaderParameters = {
-    typ: "gnap-binding+jwsd", // HERE FIRST DIFFERENCE
-    alg: alg,
-    kid: kid, // HERE: KEY_ID MUST BE REGISTERED IN THE BACKEND
-    htm: htm,
-    uri: transactionUrl,
-    created: Date.now(),
-  };
-
-  if (access_token) {
-    const accessTokenHash = await getSHA256Hash(access_token);
-    jwsHeader.ath = accessTokenHash;
-  }
-
-  let jws;
-  if (htm === HTTPMethods.POST || htm === HTTPMethods.PUT) {
-    jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(body))).setProtectedHeader(jwsHeader).sign(key);
-  } else {
-    jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(""))).setProtectedHeader(jwsHeader).sign(key);
-  }
-
-  /**
-   *  HERE: JWSD is like JWS without the payload
-   *
-   * Appendix F.  Detached Content
-   *
-   * One way to do this is to create a JWS
-   * in the normal fashion using a representation of the content as the
-   * payload but then delete the payload representation from the JWS and
-   * send this modified object to the recipient rather than the JWS.  When
-   * using the JWS Compact Serialization, the deletion is accomplished by
-   * replacing the second field (which contains BASE64URL(JWS Payload))
-   * value with the empty string
-   *
-   * https://datatracker.ietf.org/doc/html/rfc7515/#appendix-F
-   */
-
-  const jwsParts = jws.split(".");
-  const jwsdHeader = jwsParts[0] + ".." + jwsParts[2];
-
-  const headers: HeadersInit = {
-    "detached-jws": jwsdHeader, // custom header?
-    "Content-Type": "application/jose+json",
-  };
-
-  if (access_token) {
-    const accessTokenHash = await getSHA256Hash(access_token);
-    jwsHeader.ath = accessTokenHash;
-  }
-
-  // request calculated by reading Grant Request??
-  const jwsdRequestInit: RequestInit = {
-    headers: headers, // header with JWS signature
-    body: JSON.stringify(body), // original body
-    method: htm, // linked in jwsHeader
-  };
-
-  return jwsdRequestInit;
+  return requestInit;
 }

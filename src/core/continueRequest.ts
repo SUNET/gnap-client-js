@@ -1,7 +1,7 @@
 import { importJWK, KeyLike } from "jose";
-import { GrantResponse, ContinueRequest } from "../typescript-client";
+import { GrantResponse, ContinueRequest, ProofMethod } from "../typescript-client";
 import { ALGORITHM, GRANT_RESPONSE, PRIVATE_KEY, KEY_ID, SessionStorage } from "../redirect/sessionStorage";
-import { attachedJWSRequestInit } from "./securedRequest";
+import { JWSRequestInit } from "./securedRequest";
 import { HTTPMethods } from "../utils";
 import { transactionRequest } from "./transactionRequest";
 
@@ -50,7 +50,8 @@ export async function continueRequest(
     // }
     const access_token = grantResponse?.continue?.access_token?.value ?? "";
 
-    const requestInit: RequestInit = await attachedJWSRequestInit(
+    const requestInit: RequestInit = await JWSRequestInit(
+      ProofMethod.JWS, // same as in interactionStart() ?
       continueRequest,
       alg,
       privateKey as KeyLike,
