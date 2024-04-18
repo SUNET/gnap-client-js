@@ -1,6 +1,6 @@
 import { importJWK, KeyLike } from "jose";
 import { GrantResponse, ContinueRequest, ProofMethod } from "../typescript-client";
-import { ALGORITHM, GRANT_RESPONSE, PRIVATE_KEY, KEY_ID, SessionStorage } from "../redirect/sessionStorage";
+import { ALGORITHM, GRANT_RESPONSE, PRIVATE_KEY, KEY_ID, SessionStorage, KEYS } from "../redirect/sessionStorage";
 import { JWSRequestInit } from "./securedRequest";
 import { HTTPMethods } from "../utils";
 import { transactionRequest } from "./transactionRequest";
@@ -34,12 +34,12 @@ export async function continueRequest(
     };
 
     // retrieve alg and privateKey
-    const alg = sessionStorageObject[ALGORITHM];
-    const privateJwk = sessionStorageObject[PRIVATE_KEY];
+    const alg = sessionStorageObject[KEYS][ALGORITHM];
+    const privateJwk = sessionStorageObject[KEYS][PRIVATE_KEY];
     const privateKey = await importJWK(privateJwk, alg);
 
     // prepare jwsHeader
-    const random_generated_kid = sessionStorageObject[KEY_ID];
+    const random_generated_kid = sessionStorageObject[KEYS][KEY_ID];
     const continueUrl = grantResponse?.continue?.uri ?? "";
 
     // if access_token is "bound" then send it to attachedJWSRequestInit() so that it can be calculate and add "ath" in the jwsHeader
@@ -51,7 +51,7 @@ export async function continueRequest(
     const access_token = grantResponse?.continue?.access_token?.value ?? "";
 
     const requestInit: RequestInit = await JWSRequestInit(
-      ProofMethod.JWS, // same as in interactionStart() ?
+      ProofMethod.JWS, // should it be always the same as in interactionStart() ?
       continueRequest,
       alg,
       privateKey as KeyLike,

@@ -1,6 +1,15 @@
 import { GenerateKeyPairOptions, JWK, exportJWK, generateKeyPair, importJWK } from "jose";
 import { generateNonce } from "../cryptoUtils";
-import { ALGORITHM, GRANT_RESPONSE, NONCE, PRIVATE_KEY, PUBLIC_KEY, KEY_ID, setSessionStorage } from "./sessionStorage";
+import {
+  ALGORITHM,
+  GRANT_RESPONSE,
+  NONCE,
+  PRIVATE_KEY,
+  PUBLIC_KEY,
+  KEY_ID,
+  setSessionStorage,
+  KEYS,
+} from "./sessionStorage";
 import { transactionRequest } from "../core/transactionRequest";
 import {
   Access,
@@ -193,11 +202,13 @@ export async function interactionStart(
       // Save in sessionStorage and redirect
       setSessionStorage({
         [GRANT_RESPONSE]: response,
-        [NONCE]: nonce,
-        [KEY_ID]: random_generated_kid,
-        [ALGORITHM]: alg, // is it necessary if "alg" is mandatory in the JWT?
-        [PRIVATE_KEY]: privateJwk,
-        [PUBLIC_KEY]: publicJwk,
+        [NONCE]: nonce, // Session Nonce?
+        [KEYS]: {
+          [KEY_ID]: random_generated_kid,
+          [ALGORITHM]: alg, // is it necessary if "alg" is mandatory in the JWT?
+          [PRIVATE_KEY]: privateJwk,
+          [PUBLIC_KEY]: publicJwk,
+        },
       });
       return response?.interact?.redirect; // TODO: if redirect flow, return redirect url. Or always return the whole GrantResponse?
     } else {
