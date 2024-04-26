@@ -37,6 +37,7 @@ export async function isHashValid(
 
 /**
  * To be used only in a web browser flow
+ * It has to read from browser URL parameters
  *
  * @param transactionUrl
  * @returns
@@ -44,8 +45,8 @@ export async function isHashValid(
 export async function interactionCallback(transactionUrl: string): Promise<GrantResponse | undefined> {
   try {
     //TODO: if sessionStorageObject is empty, throw error
+    // Expected to find SessionStorage because it is a Redirect-based Interaction flow
     const sessionStorageObject = getSessionStorage();
-
     // Get "finish" from sessionStorage
     const finish = sessionStorageObject[GRANT_RESPONSE].interact?.finish ?? "";
 
@@ -62,9 +63,13 @@ export async function interactionCallback(transactionUrl: string): Promise<Grant
     if (!isValid) {
       throw new Error("Invalid hash");
     }
-    const response = await continueRequest(sessionStorageObject, interactRef);
+
+    // Return here AccessTokenResponse and also the whole GrantResponse because it might contain extra information as "subject"
+    const grantResponse: GrantResponse = await continueRequest(sessionStorageObject, interactRef);
+    console.log("CONTINUE REQUEST grantResponse: ", grantResponse);
+
     clearSessionStorage();
-    return response;
+    return grantResponse;
   } catch (error) {
     console.error("error:", error);
     throw error;

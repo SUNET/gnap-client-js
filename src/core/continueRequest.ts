@@ -1,7 +1,15 @@
 import { importJWK, KeyLike } from "jose";
-import { GrantResponse, ContinueRequest, ProofMethod } from "../typescript-client";
-import { ALGORITHM, GRANT_RESPONSE, PRIVATE_KEY, KEY_ID, SessionStorage, KEYS } from "../redirect/sessionStorage";
-import { JWSRequestInit } from "./securedRequest";
+import { GrantResponse, ContinueRequest } from "../typescript-client";
+import {
+  ALGORITHM,
+  GRANT_RESPONSE,
+  PRIVATE_KEY,
+  KEY_ID,
+  SessionStorage,
+  KEYS,
+  PROOF_METHOD,
+} from "../redirect/sessionStorage";
+import { JWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
 import { transactionRequest } from "./transactionRequest";
 
@@ -21,10 +29,10 @@ import { transactionRequest } from "./transactionRequest";
 export async function continueRequest(
   sessionStorageObject: SessionStorage,
   interactRef: string
-): Promise<GrantResponse | undefined> {
+): Promise<GrantResponse> {
   try {
-    const grantResponse = sessionStorageObject[GRANT_RESPONSE];
-    if (!grantResponse) {
+    const previousGrantResponse = sessionStorageObject[GRANT_RESPONSE];
+    if (!previousGrantResponse) {
       throw new Error("No grant response found");
     }
 
@@ -39,34 +47,50 @@ export async function continueRequest(
     const privateKey = await importJWK(privateJwk, alg);
 
     // prepare jwsHeader
-    const random_generated_kid = sessionStorageObject[KEYS][KEY_ID];
-    const continueUrl = grantResponse?.continue?.uri ?? "";
+    const kid = sessionStorageObject[KEYS][KEY_ID];
+    const continueUrl = previousGrantResponse?.continue?.uri ?? "";
 
-    // if access_token is "bound" then send it to attachedJWSRequestInit() so that it can be calculate and add "ath" in the jwsHeader
-    // if (grantResponse.continue?.access_token.bound) {
-    //   attachedJWSRequestInit(..., grantResponse?.continue?.access_token?.value)
-    // } else {
-    //   attachedJWSRequestInit(...)
-    // }
-    const access_token = grantResponse?.continue?.access_token?.value ?? "";
+    // ProofMethod, continuity with the first request
+    const proofMethod = sessionStorageObject[PROOF_METHOD] ?? "";
+
+    // if access_token is "bound" then send it to transactionRequest() so that it can be calculate and add "ath" in the jwsHeader
+
+    // A unique access token for continuing the request, called the "continuation access token". ...
+    // This access token MUST be bound to the client instance's key used in the request and MUST NOT be a bearer token.
+    // As a consequence, the flags array of this access token MUST NOT contain the string bearer and the key field MUST be omitted.
+    // This access token MUST NOT have a manage field. The client instance MUST present the continuation access token in all requests
+    // to the continuation URI as described in Section 7.2.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.1-2.6.1
+    const continuationAccessToken = previousGrantResponse?.continue?.access_token?.value ?? "";
 
     const requestInit: RequestInit = await JWSRequestInit(
-      ProofMethod.JWS, // should it be always the same as in interactionStart() ?
+      proofMethod, // it is the same as in interactionStart()
       continueRequest,
       alg,
       privateKey as KeyLike,
-      random_generated_kid,
+      kid,
       HTTPMethods.POST, // is it always POST?
       continueUrl,
-      access_token
+      continuationAccessToken
     );
 
     // add Authorization header, as required from https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.2-4
-    requestInit.headers = { ...requestInit.headers, ...{ Authorization: `GNAP ${access_token}` } };
+    requestInit.headers = { ...requestInit.headers, ...{ Authorization: `GNAP ${continuationAccessToken}` } };
 
-    const response = await transactionRequest(continueUrl, requestInit);
+    const grantResponse: GrantResponse = await transactionRequest(continueUrl, requestInit);
 
-    return response;
+    // TODO: Verify that GrantResponse contains the access token, to consider successful the flow
+    /**
+     * If the AS has successfully granted one or more access tokens to the client instance, the AS responds
+     * with the access_token field. This field contains either a single access token as described in Section 3.2.1
+     * or an array of access tokens as described in Section 3.2.2.
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-access-tokens
+     */
+    if (!grantResponse.access_token) {
+      throw new Error("continueRequest Error: no access_token in response");
+    }
+
+    return grantResponse;
   } catch (error) {
     console.error("continueRequest Error", error);
     throw new Error("continueRequest Error");

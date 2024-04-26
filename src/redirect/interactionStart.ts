@@ -9,6 +9,7 @@ import {
   KEY_ID,
   setSessionStorage,
   KEYS,
+  PROOF_METHOD,
 } from "./sessionStorage";
 import { transactionRequest } from "../core/transactionRequest";
 import {
@@ -19,6 +20,7 @@ import {
   ECJWK,
   FinishInteractionMethod,
   GrantRequest,
+  GrantResponse,
   InteractionRequest,
   KeyType,
   ProofMethod,
@@ -26,14 +28,16 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
 } from "../typescript-client";
-import { JWSRequestInit } from "../core/securedRequest";
+import { JWSRequestInit } from "../core/securedRequestInit";
 import { HTTPMethods } from "../utils";
 
 /**
- * Implementation wrapper for Redirect-based Interaction
- * To be used only in web browsers
+ *  1.6.2. Redirect-based Interaction
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-redirect-based-interaction
+ *
+ * Implementation wrapper for Redirect-based Interaction
+ * To be used only in web browsers
  */
 
 export async function interactionStart(
@@ -46,8 +50,6 @@ export async function interactionStart(
     throw new Error("Missing required parameters: transactionUrl, redirectUrl");
   }
   try {
-    // Configure object to be saved in SessionStorage. Is it same as the Client object?
-
     // Prepare Grant Request
     // TODO: many hardcoded configurations for now
 
@@ -78,9 +80,6 @@ export async function interactionStart(
 
     const random_generated_kid = generateNonce(32);
 
-    /**
-     *  configuration for an Attached JWS
-     */
     // A JWK MUST contain the alg (Algorithm) and kid (Key ID) parameters. The alg parameter MUST NOT be "none".
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-key-formats
     const ellipticCurveJwk: ECJWK = {
@@ -92,39 +91,17 @@ export async function interactionStart(
       y: publicJwk.y,
     };
 
-    //  7.3. Proving Possession of a Key with a Request
-    //  7.3.4. Attached JWS
+    // 7.3. Proving Possession of a Key with a Request
+
+    // switch for an Attached/ Detached JWS / others
+    const proofMethod = ProofMethod.JWSD;
+
     const client: Client = {
       key: {
-        proof: { method: ProofMethod.JWS },
+        proof: { method: proofMethod },
         jwk: ellipticCurveJwk,
       },
     };
-
-    // /**
-    //  *  configuration for an Detached JWS
-    //  * - test account in config.
-    //  */
-    // const publicKeyDetached: ECJWK = {
-    //   alg: alg,
-    //   kty: KeyType.EC,
-    //   kid: "eduid_managed_accounts_1",
-    //   crv: "P-256",
-    //   x: "dCxVL9thTTc-ZtiL_CrPpMp1Vqo2p_gUVqiVBRwqjq8",
-    //   y: "P3dAvr2IYy7DQEf4vA5bPN8gCg41M1oA5993vHr9peE",
-    //   //d: "i9hH9BeErxtI40b0_1P4XR6CXra4itKvg8ccLrxXrhQ",
-    // };
-
-    // const privateKeyDetached: ECJWK = { ...publicKeyDetached, d: "i9hH9BeErxtI40b0_1P4XR6CXra4itKvg8ccLrxXrhQ" };
-    // const key = await importJWK(privateKeyDetached as JWK, alg);
-
-    // // configuration for a Detached JWS
-    // const client: Client = {
-    //   key: {
-    //     proof: { method: ProofMethod.JWSD },
-    //     jwk: publicKeyDetached,
-    //   },
-    // };
 
     //  7.1.1. Key References
     // Keys in GNAP can also be passed by reference such that the party receiving the reference will
@@ -141,7 +118,9 @@ export async function interactionStart(
 
     // Interact
     // This is the configuration that in practice implements the interactionStart() function
+
     // Generate Nonce
+    // works as a session id?
     const nonce = generateNonce(32);
 
     //  2.5.2.2. Receive an HTTP Direct Callback
@@ -158,6 +137,7 @@ export async function interactionStart(
         // the default value is sha-256. OPTIONAL.
         // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-2.5.2-2.8.1
         // https://www.iana.org/assignments/named-information/named-information.xhtml#hash-alg
+        // hash_method: HashMethod.SHA_256,
       },
     };
 
@@ -182,7 +162,7 @@ export async function interactionStart(
      * which is in turn sent as the message content.
      */
     const requestInit: RequestInit = await JWSRequestInit(
-      ProofMethod.JWS,
+      proofMethod,
       gr,
       alg,
       privateKey,
@@ -191,29 +171,20 @@ export async function interactionStart(
       transactionUrl
     );
 
-    const response = await transactionRequest(transactionUrl, requestInit);
+    setSessionStorage({
+      [GRANT_RESPONSE]: undefined, // Empty but it will be filled by transactionRequest() when GrantResponse contains "interact.redirect"
+      [NONCE]: nonce,
+      [KEYS]: {
+        [KEY_ID]: random_generated_kid,
+        [ALGORITHM]: alg, // is it necessary if "alg" is mandatory in the JWT?
+        [PRIVATE_KEY]: privateJwk,
+        [PUBLIC_KEY]: publicJwk,
+      },
+      [PROOF_METHOD]: proofMethod,
+    });
 
-    // TODO: possibly here there should be a check for which kind of response has been received from the AS.
-    // there could be error or there could be a request from AS that the client is not prepared to handle.
-
-    // ROUTING the flow: There there should be controls to check which kind of response is returned.
-    // If there is fields that signify "Interact", then go for it
-    if (response?.interact?.redirect) {
-      // Save in sessionStorage and redirect
-      setSessionStorage({
-        [GRANT_RESPONSE]: response,
-        [NONCE]: nonce, // Session Nonce?
-        [KEYS]: {
-          [KEY_ID]: random_generated_kid,
-          [ALGORITHM]: alg, // is it necessary if "alg" is mandatory in the JWT?
-          [PRIVATE_KEY]: privateJwk,
-          [PUBLIC_KEY]: publicJwk,
-        },
-      });
-      return response?.interact?.redirect; // TODO: if redirect flow, return redirect url. Or always return the whole GrantResponse?
-    } else {
-      throw Error("Error: No redirect url found in response");
-    }
+    // by filling the GrantRequest with "interact" it is expected the AS to follow the Redirect-based Interaction flow
+    const grantResponse: GrantResponse = await transactionRequest(transactionUrl, requestInit);
   } catch (error) {
     console.error("error:", error);
     throw error;

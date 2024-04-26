@@ -1,5 +1,5 @@
 import { getSHA256Hash } from "../cryptoUtils";
-import { CompactJWSHeaderParameters, CompactSign, KeyLike, JWK, importJWK } from "jose";
+import { CompactJWSHeaderParameters, CompactSign, KeyLike, JWK, importJWK, compactVerify } from "jose";
 import { ContinueRequest, GrantRequest, ProofMethod } from "../typescript-client";
 import { HTTPMethods } from "../utils";
 
@@ -18,12 +18,25 @@ import { HTTPMethods } from "../utils";
  * either by a string, which consists of the key proof method name on its own, or by a JSON object with the required field method
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-proving-possession-of-a-key
+ *
+ *
+ * Values for the method defined by this specification are as follows:
+ * - "httpsig" (string or object): HTTP Signing signature headers. See Section 7.3.1.
+ * - "mtls" (string): Mutual TLS certificate verification. See Section 7.3.2.
+ * - "jwsd" (string): A detached JWS signature header. See Section 7.3.3.
+ * - "jws" (string): Attached JWS payload. See Section 7.3.4.
+ *
  */
 
 /**
+ * JWSD and JWS
+ *
+ *  7.3.3. Detached JWS
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-detached-jws
  *  7.3.4. Attached JWS
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-attached-jws
  *
+ * @param jwsType
  * @param body
  * @param alg
  * @param privateKey
@@ -56,7 +69,7 @@ export async function JWSRequestInit(
     typ: typ,
     alg: alg,
     kid: kid,
-    htm: htm, // linked in jwsRequest method
+    htm: htm, // linked to requestInit method
     uri: transactionUrl,
     created: Date.now(),
   };
@@ -87,15 +100,26 @@ export async function JWSRequestInit(
       .sign(privateKey);
   }
 
+  let headers; //: HeadersInit
   // Prepare the fetch requestInit object
   // "The signer presents the JWS as the content of the request along with a content type of application/jose."
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-8
   // "application/jose" vs "application/jose+json" https://www.rfc-editor.org/rfc/rfc7515.html#section-9.2.1
-  let headers: HeadersInit = {
-    "Content-Type": "application/jose+json", // or should it be "application/jose" ?
-  };
+  if (jwsType === ProofMethod.JWS) {
+    headers = {
+      "Content-Type": "application/jose+json", // or should it be "application/jose" ?
+    };
+  }
 
   if (jwsType === ProofMethod.JWSD) {
+    /**
+     * If the HTTP request has content, such as an HTTP POST or PUT method, the payload of the JWS object is the
+     * Base64url encoding (without padding) of the SHA256 digest of the bytes of the content. If the request being
+     * made does not have content, such as an HTTP GET, OPTIONS, or DELETE method, the JWS signature is calculated
+     * over an empty payload.
+     *
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-8
+     */
     /**
      *  HERE: JWSD is like JWS without the payload
      *
@@ -111,13 +135,19 @@ export async function JWSRequestInit(
      *
      * https://datatracker.ietf.org/doc/html/rfc7515/#appendix-F
      */
-    console.log("DETACHED JWS", jws);
+    console.log("ATTACHED JWS", jws);
     const jwsParts = jws.split(".");
     const jwsdHeader = jwsParts[0] + ".." + jwsParts[2];
+
     console.log("DETACHED JWS", jwsdHeader);
     // The signer presents the signed object in compact form [RFC7515] in the Detached-JWS HTTP Header field.
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-9
-    headers = { ...headers, "Detached-JWS": jwsdHeader };
+    // headers = { ...headers, "Detached-JWS": jwsdHeader };
+    //headers = { "Content-Type": "application/json", "Detached-JWS": jwsdHeader };
+
+    // The signer presents the signed object in compact form [RFC7515] in the Detached-JWS HTTP Header field.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-9
+    headers = { "Content-Type": "application/json", "Detached-JWS": jws };
   }
 
   if (access_token) {
@@ -126,7 +156,7 @@ export async function JWSRequestInit(
   }
 
   // Modify request payload based on if it is JWS or JWSD
-  let payload;
+  let payload; // : BodyInit
   if (jwsType === ProofMethod.JWS) payload = jws;
   if (jwsType === ProofMethod.JWSD) payload = JSON.stringify(body); // original body
 
@@ -134,7 +164,7 @@ export async function JWSRequestInit(
   const requestInit: RequestInit = {
     headers: headers, // header with JWS signature or Detached-JWS
     body: payload,
-    method: htm, // linked in jwsHeader
+    method: htm, // linked to jwsHeader
   };
 
   return requestInit;
