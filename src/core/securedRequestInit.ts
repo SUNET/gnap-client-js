@@ -57,7 +57,8 @@ export async function JWSRequestInit(
   access_token?: string // if the grant request is bound to an access token
 ): Promise<RequestInit> {
   // validate JWS "type":
-  if (jwsType !== ProofMethod.JWS && jwsType !== ProofMethod.JWSD) throw new Error("JWSRequestInit: invalid type");
+  if (jwsType !== ProofMethod.JWS && jwsType !== ProofMethod.JWSD)
+    throw new Error("JWSRequestInit: invalid ProofMethod type");
 
   // set right typ for the jwsHeader
   let typ;
@@ -104,10 +105,10 @@ export async function JWSRequestInit(
   // Prepare the fetch requestInit object
   // "The signer presents the JWS as the content of the request along with a content type of application/jose."
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-8
-  // "application/jose" vs "application/jose+json" https://www.rfc-editor.org/rfc/rfc7515.html#section-9.2.1
+  // https://www.rfc-editor.org/rfc/rfc7515.html#section-9.2.1
   if (jwsType === ProofMethod.JWS) {
     headers = {
-      "Content-Type": "application/jose+json", // or should it be "application/jose" ?
+      "Content-Type": "application/jose",
     };
   }
 
@@ -137,17 +138,13 @@ export async function JWSRequestInit(
      */
     console.log("ATTACHED JWS", jws);
     const jwsParts = jws.split(".");
-    const jwsdHeader = jwsParts[0] + ".." + jwsParts[2];
+    const jwsdPayload = await getSHA256Hash(JSON.stringify(body));
+    const jwsdHeader = jwsParts[0] + "." + jwsdPayload + "." + jwsParts[2];
 
     console.log("DETACHED JWS", jwsdHeader);
     // The signer presents the signed object in compact form [RFC7515] in the Detached-JWS HTTP Header field.
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-9
-    // headers = { ...headers, "Detached-JWS": jwsdHeader };
-    //headers = { "Content-Type": "application/json", "Detached-JWS": jwsdHeader };
-
-    // The signer presents the signed object in compact form [RFC7515] in the Detached-JWS HTTP Header field.
-    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-9
-    headers = { "Content-Type": "application/json", "Detached-JWS": jws };
+    headers = { "Content-Type": "application/json", "Detached-JWS": jwsdHeader };
   }
 
   if (access_token) {
@@ -162,9 +159,9 @@ export async function JWSRequestInit(
 
   // request calculated by reading Grant Request??
   const requestInit: RequestInit = {
+    method: htm, // linked to jwsHeader
     headers: headers, // header with JWS signature or Detached-JWS
     body: payload,
-    method: htm, // linked to jwsHeader
   };
 
   return requestInit;

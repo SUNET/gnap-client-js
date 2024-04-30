@@ -42,6 +42,7 @@ import { HTTPMethods } from "../utils";
 
 export async function interactionStart(
   transactionUrl: string,
+  proofMethod: ProofMethod, // configuration exposed to user
   redirectUrl: string,
   accessArray: Array<string | Access>
 ) {
@@ -92,9 +93,6 @@ export async function interactionStart(
     };
 
     // 7.3. Proving Possession of a Key with a Request
-
-    // switch for an Attached/ Detached JWS / others
-    const proofMethod = ProofMethod.JWSD;
 
     const client: Client = {
       key: {

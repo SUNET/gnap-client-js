@@ -35,13 +35,6 @@ export type SessionStorage = {
 export function setSessionStorage(sessionStorageObject: SessionStorage) {
   clearSessionStorage();
   try {
-    // const now = new Date();
-    // const expiresIn = sessionStorageObject[GRANT_RESPONSE].interact?.expires_in ?? 0; // The number of seconds in which the access will expire
-    // const expiresInMilliseconds = expiresIn * 1000;
-    // const InteractionExpirationTime = new Date(now.getTime() + expiresInMilliseconds).getTime();
-    // sessionStorage.setItem(INTERACTION_EXPIRATION_TIME, InteractionExpirationTime.toString());
-
-    //sessionStorage.setItem(GRANT_RESPONSE, JSON.stringify(sessionStorageObject[GRANT_RESPONSE]));
     sessionStorage.setItem(NONCE, sessionStorageObject[NONCE]);
     sessionStorage.setItem(KEYS, JSON.stringify(sessionStorageObject[KEYS]));
     sessionStorage.setItem(PROOF_METHOD, sessionStorageObject[PROOF_METHOD]);
