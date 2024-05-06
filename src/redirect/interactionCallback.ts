@@ -1,4 +1,4 @@
-import { GRANT_RESPONSE, NONCE, clearSessionStorage, getSessionStorage } from "./sessionStorage";
+import { GRANT_RESPONSE, NONCE, TRANSACTION_URL, clearSessionStorage, getSessionStorage } from "./sessionStorage";
 import { continueRequest } from "../core/continueRequest";
 import { GrantResponse } from "../typescript-client";
 import { getSHA256Hash } from "../cryptoUtils";
@@ -39,16 +39,16 @@ export async function isHashValid(
  * To be used only in a web browser flow
  * It has to read from browser URL parameters
  *
- * @param transactionUrl
  * @returns
  */
-export async function interactionCallback(transactionUrl: string): Promise<GrantResponse | undefined> {
+export async function interactionCallback(): Promise<GrantResponse | undefined> {
   try {
     //TODO: if sessionStorageObject is empty, throw error
     // Expected to find SessionStorage because it is a Redirect-based Interaction flow
     const sessionStorageObject = getSessionStorage();
     // Get "finish" from sessionStorage
     const finish = sessionStorageObject[GRANT_RESPONSE].interact?.finish ?? "";
+    const transactionUrl = sessionStorageObject[TRANSACTION_URL] ?? "";
 
     // Get "hash" and "interact_ref" from URL query parameters
     const searchParams = new URLSearchParams(window.location.search);

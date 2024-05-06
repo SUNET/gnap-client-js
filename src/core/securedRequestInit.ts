@@ -1,5 +1,5 @@
 import { getSHA256Hash } from "../cryptoUtils";
-import { CompactJWSHeaderParameters, CompactSign, KeyLike, JWK, importJWK, compactVerify } from "jose";
+import { CompactJWSHeaderParameters, CompactSign, KeyLike } from "jose";
 import { ContinueRequest, GrantRequest, ProofMethod } from "../typescript-client";
 import { HTTPMethods } from "../utils";
 

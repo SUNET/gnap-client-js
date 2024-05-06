@@ -10,6 +10,7 @@ import {
   setSessionStorage,
   KEYS,
   PROOF_METHOD,
+  TRANSACTION_URL,
 } from "./sessionStorage";
 import { transactionRequest } from "../core/transactionRequest";
 import {
@@ -68,6 +69,7 @@ export async function interactionStart(
     };
 
     // Client
+    // TODO: Check if a key already exists in SessionStorage
     // generate key pair
     // Pre-configuration/hardcoded to use alg="ES256". Always valid?
     const alg = "ES256";
@@ -179,6 +181,7 @@ export async function interactionStart(
         [PUBLIC_KEY]: publicJwk,
       },
       [PROOF_METHOD]: proofMethod,
+      [TRANSACTION_URL]: transactionUrl,
     });
 
     // by filling the GrantRequest with "interact" it is expected the AS to follow the Redirect-based Interaction flow

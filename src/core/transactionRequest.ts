@@ -10,6 +10,8 @@ import { GrantResponse } from "typescript-client";
  * @param request
  * @returns
  */
+// NAME transactionRequest it is meaningful? it is used in continueRequest with a given continueUrl from the server
+// (not the same default transactionUrl) and it still works. Maybe it could be renamed something as fetchGrantResponse() ?
 export async function transactionRequest(transactionUrl: string, requestInit: RequestInit): Promise<GrantResponse> {
   try {
     // always a POST to a fixed url transactionUrl
@@ -47,7 +49,7 @@ export async function transactionRequest(transactionUrl: string, requestInit: Re
       sessionStorage.setItem(INTERACTION_EXPIRATION_TIME, InteractionExpirationTime.toString());
       // Save GrantResponse in sessionStorage
       sessionStorage.setItem(GRANT_RESPONSE, JSON.stringify(grantResponse));
-      // fRESULT OF THE CONDITION: force browser to redirect
+      // RESULT OF THE CONDITION: force browser to redirect
       window.location.href = grantResponse.interact?.redirect;
     }
     return grantResponse;
