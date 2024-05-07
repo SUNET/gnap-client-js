@@ -3,7 +3,7 @@ import { generateNonce } from "../cryptoUtils";
 import {
   ALGORITHM,
   GRANT_RESPONSE,
-  NONCE,
+  FINISH_NONCE,
   PRIVATE_KEY,
   PUBLIC_KEY,
   KEY_ID,
@@ -12,7 +12,7 @@ import {
   PROOF_METHOD,
   TRANSACTION_URL,
 } from "./sessionStorage";
-import { transactionRequest } from "../core/transactionRequest";
+import { fetchGrantResponse } from "../core/fetchGrantResponse";
 import {
   Access,
   AccessTokenFlags,
@@ -36,6 +36,9 @@ import { HTTPMethods } from "../utils";
  *  1.6.2. Redirect-based Interaction
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-redirect-based-interaction
+ *
+ *  C.1. Redirect-Based User Interaction
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-redirect-based-user-interac
  *
  * Implementation wrapper for Redirect-based Interaction
  * To be used only in web browsers
@@ -69,6 +72,37 @@ export async function interactionStart(
     };
 
     // Client
+    /**
+     *  13.5. Protection of Client Instance Key Material
+     *
+     * Client instances are identified by their unique keys, and anyone with access to a client instance's key material
+     * will be able to impersonate that client instance to all parties. This is true for both calls to the AS as well
+     * as calls to an RS using an access token bound to the client instance's unique key. As a consequence, it is of
+     * utmost importance for a client instance to protect its private key material.
+     * ...
+     * Finally, if multiple instances of client software each have the same key, then from GNAP's perspective, these
+     * are functionally the same client instance as GNAP has no reasonable way to differentiate between them. This
+     * situation could happen if multiple instances within a cluster can securely share secret information among themselves.
+     * Even though there are multiple copies of the software, the shared key makes these copies all present as a single instance.
+     * It is considered bad practice to share keys between copies of software unless they are very tightly integrated with each
+     * other and can be closely managed. It is particularly bad practice to allow an end user to copy keys between client instances
+     * and to willingly use the same key in multiple instances.
+     *
+     *  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-protection-of-client-instan
+     *
+     *
+     *  13.21. Key Distribution
+     *
+     * GNAP does not define ways for the client instances keys to be provided to the client instances, particularly
+     * in light of how those keys are made known to the AS. These keys could be generated dynamically on the client
+     * software or pre-registered at the AS in a static developer portal. The keys for client instances could also be
+     * distributed as part of the deployment process of instances of the client software. For example, an application
+     * installation framework could generate a keypair for each copy of client software, then both install it into the
+     * client software upon installation and registering that instance with the AS.
+     *
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-key-distribution
+     *
+     */
     // TODO: Check if a key already exists in SessionStorage
     // generate key pair
     // Pre-configuration/hardcoded to use alg="ES256". Always valid?
@@ -119,9 +153,8 @@ export async function interactionStart(
     // Interact
     // This is the configuration that in practice implements the interactionStart() function
 
-    // Generate Nonce
-    // works as a session id?
-    const nonce = generateNonce(32);
+    // Generate Finish Nonce
+    const finishNonce = generateNonce(32);
 
     //  2.5.2.2. Receive an HTTP Direct Callback
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-receive-an-http-callback-th
@@ -130,7 +163,7 @@ export async function interactionStart(
       finish: {
         method: FinishInteractionMethod.REDIRECT,
         uri: redirectUrl,
-        nonce: nonce, // to be verified with "hash" query parameter from redirect
+        nonce: finishNonce, // to be verified with "hash" query parameter from redirect
         //  hash_method (string):
         // An identifier of a hash calculation mechanism to be used for the callback hash in Section 4.2.3,
         // as defined in the IANA Named Information Hash Algorithm Registry [HASH-ALG]. If absent,
@@ -172,8 +205,7 @@ export async function interactionStart(
     );
 
     setSessionStorage({
-      [GRANT_RESPONSE]: undefined, // Empty but it will be filled by transactionRequest() when GrantResponse contains "interact.redirect"
-      [NONCE]: nonce,
+      [FINISH_NONCE]: finishNonce,
       [KEYS]: {
         [KEY_ID]: random_generated_kid,
         [ALGORITHM]: alg, // is it necessary if "alg" is mandatory in the JWT?
@@ -185,7 +217,7 @@ export async function interactionStart(
     });
 
     // by filling the GrantRequest with "interact" it is expected the AS to follow the Redirect-based Interaction flow
-    const grantResponse: GrantResponse = await transactionRequest(transactionUrl, requestInit);
+    const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, requestInit);
   } catch (error) {
     console.error("error:", error);
     throw error;

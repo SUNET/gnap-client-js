@@ -1,4 +1,4 @@
-import { getSHA256Hash } from "../cryptoUtils";
+import { getEncodedHash } from "../cryptoUtils";
 import { CompactJWSHeaderParameters, CompactSign, KeyLike } from "jose";
 import { ContinueRequest, GrantRequest, ProofMethod } from "../typescript-client";
 import { HTTPMethods } from "../utils";
@@ -7,6 +7,11 @@ import { HTTPMethods } from "../utils";
  * 7. Securing Requests from the Client Instance
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-securing-requests-from-the-
+ *
+ *
+ *
+ *  13.2. Signing Requests from the Client Software
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-determining-authorization-a
  *
  */
 
@@ -80,7 +85,7 @@ export async function JWSRequestInit(
   //                  of the SHA-256 digest of the ASCII encoding of the associated access token's value.
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-7.2.1
   if (access_token) {
-    const accessTokenHash = await getSHA256Hash(access_token);
+    const accessTokenHash = await getEncodedHash(access_token);
     jwsHeader.ath = accessTokenHash;
   }
 
@@ -138,7 +143,7 @@ export async function JWSRequestInit(
      */
     console.log("ATTACHED JWS", jws);
     const jwsParts = jws.split(".");
-    const jwsdPayload = await getSHA256Hash(JSON.stringify(body));
+    const jwsdPayload = await getEncodedHash(JSON.stringify(body));
     const jwsdHeader = jwsParts[0] + "." + jwsdPayload + "." + jwsParts[2];
 
     console.log("DETACHED JWS", jwsdHeader);
@@ -148,7 +153,7 @@ export async function JWSRequestInit(
   }
 
   if (access_token) {
-    const accessTokenHash = await getSHA256Hash(access_token);
+    const accessTokenHash = await getEncodedHash(access_token);
     jwsHeader.ath = accessTokenHash;
   }
 

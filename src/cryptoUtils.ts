@@ -9,6 +9,12 @@ export function generateNonce(len: number) {
   return result;
 }
 
+export enum CryptoSubtleDigestAlgorithm {
+  SHA256 = "SHA-256",
+  SHA384 = "SHA-384",
+  SHA512 = "SHA-512",
+}
+
 /**
  * The party then hashes the bytes of the ASCII encoding of this string with the appropriate
  * algorithm based on the "hash_method" parameter under the "finish" key of the interaction finish request
@@ -20,10 +26,14 @@ export function generateNonce(len: number) {
  * @param input
  * @returns
  */
-export const getSHA256Hash = async (input: string) => {
-  const hashBuffer = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+export async function getEncodedHash(
+  input: string,
+  algorithm: CryptoSubtleDigestAlgorithm = CryptoSubtleDigestAlgorithm.SHA256
+): Promise<string> {
+  // https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/digest
+  const hashBuffer = await window.crypto.subtle.digest(algorithm, new TextEncoder().encode(input));
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   const base64String = btoa(String.fromCharCode(...hashArray));
   const urlSafeBase64 = base64String.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   return urlSafeBase64;
-};
+}

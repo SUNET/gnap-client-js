@@ -3,7 +3,7 @@ import { GrantResponse, ProofMethod } from "typescript-client";
 
 export const GRANT_RESPONSE = "GrantResponse";
 export const INTERACTION_EXPIRATION_TIME = "InteractionExpirationTime";
-export const NONCE = "Nonce";
+export const FINISH_NONCE = "FinishNonce";
 export const KEYS = "Keys";
 export const KEY_ID = "KeyID";
 export const ALGORITHM = "Algorithm"; // it will be set to JWT key "alg"
@@ -20,9 +20,9 @@ export type KeysStorage = {
 };
 
 export type SessionStorage = {
-  [GRANT_RESPONSE]: GrantResponse | undefined;
+  [GRANT_RESPONSE]?: GrantResponse;
   [INTERACTION_EXPIRATION_TIME]?: string; // number?
-  [NONCE]: string;
+  [FINISH_NONCE]: string;
   [KEYS]: KeysStorage;
   [PROOF_METHOD]: ProofMethod;
   [TRANSACTION_URL]: string;
@@ -30,6 +30,13 @@ export type SessionStorage = {
 
 /**
  * 13.26. Storage of Information During Interaction and Continuation
+ * ...
+ * If the security protocol elements are stored on the end user's device, such as in browser storage or in local
+ * application data stores, capture and exfiltration of this information could allow an attacker to continue a pending
+ * transaction instead of the client instance. Client software can make use of secure storage mechanisms, including
+ * hardware-based key and data storage, to prevent such exfiltration.
+ * ...
+ *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-storage-of-information-duri
  *
  * @param sessionStorageObject
@@ -37,7 +44,8 @@ export type SessionStorage = {
 export function setSessionStorage(sessionStorageObject: SessionStorage) {
   clearSessionStorage();
   try {
-    sessionStorage.setItem(NONCE, sessionStorageObject[NONCE]);
+    // GRANT_RESPONSE and INTERACTION_EXPIRATION_TIME are saved in fetchGrantResponse base on which answer is received
+    sessionStorage.setItem(FINISH_NONCE, sessionStorageObject[FINISH_NONCE]);
     sessionStorage.setItem(KEYS, JSON.stringify(sessionStorageObject[KEYS]));
     sessionStorage.setItem(PROOF_METHOD, sessionStorageObject[PROOF_METHOD]);
     sessionStorage.setItem(TRANSACTION_URL, sessionStorageObject[TRANSACTION_URL]);
@@ -53,7 +61,7 @@ export function setSessionStorage(sessionStorageObject: SessionStorage) {
 export function getSessionStorage() {
   const grantResponse = JSON.parse(sessionStorage.getItem(GRANT_RESPONSE) ?? "");
   const interactionExpirationTime = sessionStorage.getItem(INTERACTION_EXPIRATION_TIME) ?? "";
-  const nonce = sessionStorage.getItem(NONCE) ?? "";
+  const finishNonce = sessionStorage.getItem(FINISH_NONCE) ?? "";
   const keysStorage = sessionStorage.getItem(KEYS) ?? "";
   const proofMethod = sessionStorage.getItem(PROOF_METHOD) ?? "";
   const transactionUrl = sessionStorage.getItem(TRANSACTION_URL) ?? "";
@@ -61,7 +69,7 @@ export function getSessionStorage() {
   const sessionStorageObject = {
     [GRANT_RESPONSE]: grantResponse as GrantResponse,
     [INTERACTION_EXPIRATION_TIME]: interactionExpirationTime,
-    [NONCE]: nonce,
+    [FINISH_NONCE]: finishNonce,
     [KEYS]: JSON.parse(keysStorage),
     [PROOF_METHOD]: proofMethod as ProofMethod,
     [TRANSACTION_URL]: transactionUrl,
@@ -73,7 +81,7 @@ export function clearSessionStorage() {
   const keysInSessionStorage = [
     GRANT_RESPONSE,
     INTERACTION_EXPIRATION_TIME,
-    NONCE,
+    FINISH_NONCE,
     KEYS,
     PROOF_METHOD,
     TRANSACTION_URL,

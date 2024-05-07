@@ -1,40 +1,40 @@
-import { GRANT_RESPONSE, NONCE, TRANSACTION_URL, clearSessionStorage, getSessionStorage } from "./sessionStorage";
+import {
+  GRANT_RESPONSE,
+  FINISH_NONCE,
+  TRANSACTION_URL,
+  clearSessionStorage,
+  getSessionStorage,
+} from "./sessionStorage";
 import { continueRequest } from "../core/continueRequest";
 import { GrantResponse } from "../typescript-client";
-import { getSHA256Hash } from "../cryptoUtils";
+import { getEncodedHash } from "../cryptoUtils";
 
 /**
+ *  4.2.3. Calculating the interaction hash
  *
- * Calculating the interaction hash
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-calculating-the-interaction
  *
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-calculating-the-interaction
  *
- * @param nonce
- * @param finish
- * @param interactRef
- * @param transactionUrl
- * @param hashURL
- * @returns
+ *  13.25. Calculating Interaction Hash
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-calculating-interaction-has
+ *
  */
-export async function isHashValid(
-  nonce: string,
+
+export async function getInteractionHash(
+  finishNonce: string,
   finish: string,
   interactRef: string,
-  transactionUrl: string,
-  hashURL: string
-): Promise<boolean> {
+  transactionUrl: string
+): Promise<string> {
   try {
-    const hashBaseString = `${nonce}\n${finish}\n${interactRef}\n${transactionUrl}`;
-    const hashCalculated = await getSHA256Hash(hashBaseString);
-    if (hashCalculated === hashURL) {
-      return true;
-    }
+    const hashBaseString = `${finishNonce}\n${finish}\n${interactRef}\n${transactionUrl}`;
+    return await getEncodedHash(hashBaseString);
   } catch (error) {
-    console.error("testHash error", error);
+    console.error("getInteractionHash error", error);
+    throw new Error("getInteractionHash error");
   }
-  return false;
 }
-
 /**
  * To be used only in a web browser flow
  * It has to read from browser URL parameters
@@ -59,8 +59,15 @@ export async function interactionCallback(): Promise<GrantResponse | undefined> 
       throw new Error("Error reading GrandResponse or missing interactRef");
     }
 
-    const isValid = await isHashValid(sessionStorageObject[NONCE], finish, interactRef, transactionUrl, hashURL);
-    if (!isValid) {
+    // The client instance calculates a hash (Section 4.2.3) based on this information and continues only if the hash validates.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-1.6.2-3.7.1
+    const interactionHash = await getInteractionHash(
+      sessionStorageObject[FINISH_NONCE],
+      finish,
+      interactRef,
+      transactionUrl
+    );
+    if (interactionHash !== hashURL) {
       throw new Error("Invalid hash");
     }
 

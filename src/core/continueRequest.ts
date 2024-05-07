@@ -11,14 +11,14 @@ import {
 } from "../redirect/sessionStorage";
 import { JWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
-import { transactionRequest } from "./transactionRequest";
+import { fetchGrantResponse } from "./fetchGrantResponse";
 
 /**
  * 5. Continuing a Grant Request
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-continuing-a-grant-request
  *
- * Comment: similar to transactionRequest but:
+ * Comment: similar to fetchGrantResponse but:
  * - the continueUrl is not fixes, it is decided by the AS, and comes from GrantResponse.continue.uri
  * - (if request is bound to an access token) jwsHeader needs to have one more felt "ath" access token header calculated hashing with GrantResponse.continue.access_token.value
  *
@@ -53,7 +53,7 @@ export async function continueRequest(
     // ProofMethod, continuity with the first request
     const proofMethod = sessionStorageObject[PROOF_METHOD] ?? "";
 
-    // if access_token is "bound" then send it to transactionRequest() so that it can be calculate and add "ath" in the jwsHeader
+    // if access_token is "bound" then send it to fetchGrantResponse() so that it can be calculate and add "ath" in the jwsHeader
 
     // A unique access token for continuing the request, called the "continuation access token". ...
     // This access token MUST be bound to the client instance's key used in the request and MUST NOT be a bearer token.
@@ -77,7 +77,7 @@ export async function continueRequest(
     // add Authorization header, as required from https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.2-4
     requestInit.headers = { ...requestInit.headers, ...{ Authorization: `GNAP ${continuationAccessToken}` } };
 
-    const grantResponse: GrantResponse = await transactionRequest(continueUrl, requestInit);
+    const grantResponse: GrantResponse = await fetchGrantResponse(continueUrl, requestInit);
 
     // TODO: Verify that GrantResponse contains the access token, to consider successful the flow
     /**
