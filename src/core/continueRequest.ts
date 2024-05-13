@@ -1,19 +1,11 @@
-import { importJWK, KeyLike } from "jose";
-import { GrantResponse, ContinueRequest } from "../typescript-client";
-import {
-  ALGORITHM,
-  GRANT_RESPONSE,
-  PRIVATE_KEY,
-  KEY_ID,
-  SessionStorage,
-  KEYS,
-  PROOF_METHOD,
-} from "../redirect/sessionStorage";
+import { GrantResponse, ContinueRequest, Continue, ProofMethod } from "../typescript-client";
+import { PRIVATE_KEY, JSON_WEB_KEY, getStorageClientKeys } from "../redirect/sessionStorage";
 import { JWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
 import { fetchGrantResponse } from "./fetchGrantResponse";
 
 /**
+ *
  * 5. Continuing a Grant Request
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol/#name-continuing-a-grant-request
@@ -22,77 +14,70 @@ import { fetchGrantResponse } from "./fetchGrantResponse";
  * - the continueUrl is not fixes, it is decided by the AS, and comes from GrantResponse.continue.uri
  * - (if request is bound to an access token) jwsHeader needs to have one more felt "ath" access token header calculated hashing with GrantResponse.continue.access_token.value
  *
- * @param sessionStorageObject
+ *
+ * To enable this ongoing negotiation, the AS provides a continuation API to the client software. The AS returns
+ * a continue field in the response (Section 3.1) that contains information the client instance needs to access
+ * this API, including a URI to access as well as a special access token to use during the requests, called the
+ * continuation access token.
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-5-3
+ *
+ *
+ * All requests to the continuation API are protected by a bound continuation access token. The continuation access
+ * token is bound to the same key and method the client instance used to make the initial request (or its most recent rotation).
+ * As a consequence, when the client instance makes any calls to the continuation URI, the client instance MUST present the
+ * continuation access token as described in Section 7.2 and present proof of the client instance's key (or its most recent rotation)
+ * by signing the request as described in Section 7.3.
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-5-4
+ *
+ *
  * @param interactRef
  * @returns
  */
 export async function continueRequest(
-  sessionStorageObject: SessionStorage,
+  continueObject: Continue,
+  proofMethod: ProofMethod,
   interactRef: string
 ): Promise<GrantResponse> {
-  try {
-    const previousGrantResponse = sessionStorageObject[GRANT_RESPONSE];
-    if (!previousGrantResponse) {
-      throw new Error("No grant response found");
-    }
+  // in a continue request it is expected that the data is saved
+  const clientKeys = getStorageClientKeys();
+  const privateJwk = clientKeys[PRIVATE_KEY];
 
-    // Prepare request body continueRequest
-    const continueRequest: ContinueRequest = {
-      interact_ref: interactRef,
-    };
-
-    // retrieve alg and privateKey
-    const alg = sessionStorageObject[KEYS][ALGORITHM];
-    const privateJwk = sessionStorageObject[KEYS][PRIVATE_KEY];
-    const privateKey = await importJWK(privateJwk, alg);
-
-    // prepare jwsHeader
-    const kid = sessionStorageObject[KEYS][KEY_ID];
-    const continueUrl = previousGrantResponse?.continue?.uri ?? "";
-
-    // ProofMethod, continuity with the first request
-    const proofMethod = sessionStorageObject[PROOF_METHOD] ?? "";
-
-    // if access_token is "bound" then send it to fetchGrantResponse() so that it can be calculate and add "ath" in the jwsHeader
-
-    // A unique access token for continuing the request, called the "continuation access token". ...
-    // This access token MUST be bound to the client instance's key used in the request and MUST NOT be a bearer token.
-    // As a consequence, the flags array of this access token MUST NOT contain the string bearer and the key field MUST be omitted.
-    // This access token MUST NOT have a manage field. The client instance MUST present the continuation access token in all requests
-    // to the continuation URI as described in Section 7.2.
-    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.1-2.6.1
-    const continuationAccessToken = previousGrantResponse?.continue?.access_token?.value ?? "";
-
-    const requestInit: RequestInit = await JWSRequestInit(
-      proofMethod, // it is the same as in interactionStart()
-      continueRequest,
-      alg,
-      privateKey as KeyLike,
-      kid,
-      HTTPMethods.POST, // is it always POST?
-      continueUrl,
-      continuationAccessToken
-    );
-
-    // add Authorization header, as required from https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.2-4
-    requestInit.headers = { ...requestInit.headers, ...{ Authorization: `GNAP ${continuationAccessToken}` } };
-
-    const grantResponse: GrantResponse = await fetchGrantResponse(continueUrl, requestInit);
-
-    // TODO: Verify that GrantResponse contains the access token, to consider successful the flow
-    /**
-     * If the AS has successfully granted one or more access tokens to the client instance, the AS responds
-     * with the access_token field. This field contains either a single access token as described in Section 3.2.1
-     * or an array of access tokens as described in Section 3.2.2.
-     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-access-tokens
-     */
-    if (!grantResponse.access_token) {
-      throw new Error("continueRequest Error: no access_token in response");
-    }
-
-    return grantResponse;
-  } catch (error) {
-    console.error("continueRequest Error", error);
-    throw new Error("continueRequest Error");
+  if (!continueObject.uri || !continueObject.access_token?.value) {
+    throw new Error("continueObject.uri or continueObject.access_token.value is missing");
   }
+
+  // prepare for jwsHeader
+  const continueUrl = continueObject.uri;
+
+  // A unique access token for continuing the request, called the "continuation access token". ...
+  // This access token MUST be bound to the client instance's key used in the request and MUST NOT be a bearer token.
+  // As a consequence, the flags array of this access token MUST NOT contain the string bearer and the key field MUST be omitted.
+  // This access token MUST NOT have a manage field. The client instance MUST present the continuation access token in all requests
+  // to the continuation URI as described in Section 7.2.
+  // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.1-2.6.1
+
+  // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance (Section 2.3) in its request for access.
+  // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
+  const continuationAccessToken = continueObject.access_token.value;
+
+  // Prepare request body continueRequest
+  const continueRequestBody: ContinueRequest = {
+    interact_ref: interactRef,
+  };
+
+  const requestInit: RequestInit = await JWSRequestInit(
+    proofMethod, // it is the same as in interactionStart()
+    continueRequestBody,
+    clientKeys[JSON_WEB_KEY],
+    privateJwk,
+    HTTPMethods.POST, // is it always POST?
+    continueUrl,
+    continuationAccessToken
+  );
+
+  const grantResponse: GrantResponse = await fetchGrantResponse(continueUrl, requestInit);
+
+  return grantResponse;
 }

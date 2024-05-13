@@ -1,4 +1,4 @@
-import { GRANT_RESPONSE, INTERACTION_EXPIRATION_TIME } from "../redirect/sessionStorage";
+import { setStorageGrantResponse, setStorageInteractionExpirationTime } from "../redirect/sessionStorage";
 import { GrantResponse } from "typescript-client";
 
 /**
@@ -36,6 +36,13 @@ export async function fetchGrantResponse(transactionUrl: string, requestInit: Re
     const grantResponse: GrantResponse = await response.json();
 
     /**
+     *  1.5. Protocol Flow
+     *
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-protocol-flow
+     *
+     */
+
+    /**
      *  4. Determining Authorization and Consent
      *
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-determining-authorization-a
@@ -46,15 +53,27 @@ export async function fetchGrantResponse(transactionUrl: string, requestInit: Re
 
     // ROUTING the flow: There there should be controls to check which kind of response is returned.
     // If there is fields that signify "Interact", then go for it
+
+    // Would be here the control of the Protocol Flow?
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-protocol-flow
+
+    // Get the response and check if the AS is following the Redirect-based Interaction flow
+    /**
+     *
+     * 3.1. Request Continuation
+     * If the AS determines that the grant request can be continued by the client instance, the AS responds with the continue field.
+     * This field contains a JSON object with the following properties.
+     *
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-request-continuation
+     */
     if (grantResponse.interact?.redirect) {
-      // calculate the expiration time for the interaction
-      const now = new Date();
-      const expiresIn = grantResponse.interact?.expires_in ?? 0; // The number of seconds in which the access will expire
-      const expiresInMilliseconds = expiresIn * 1000;
-      const InteractionExpirationTime = new Date(now.getTime() + expiresInMilliseconds).getTime();
-      sessionStorage.setItem(INTERACTION_EXPIRATION_TIME, InteractionExpirationTime.toString());
+      // expires_in: The number of integer seconds after which this set of interaction responses will expire
+      // and no longer be usable by the client instance.
+      // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-3.3-2.12.1
+      setStorageInteractionExpirationTime(grantResponse.interact?.expires_in ?? 0);
+
       // Save GrantResponse in sessionStorage
-      sessionStorage.setItem(GRANT_RESPONSE, JSON.stringify(grantResponse));
+      setStorageGrantResponse(grantResponse);
 
       // RESULT OF THE CONDITION: force browser to redirect
       /**
@@ -69,6 +88,16 @@ export async function fetchGrantResponse(transactionUrl: string, requestInit: Re
        *
        */
       window.location.href = grantResponse.interact?.redirect;
+    }
+
+    // fallback case with access token, when APPROVED?
+    /**
+     *  3. Grant Response
+     *
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-grant-response
+     */
+    if (grantResponse.access_token) {
+      return grantResponse;
     }
     return grantResponse;
   } catch (error) {
