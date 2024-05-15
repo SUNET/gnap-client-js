@@ -23,7 +23,10 @@ export enum CryptoSubtleDigestAlgorithm {
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-4.2.3-6
  *
+ * Defaults algorithm to SHA256, as in GNAP specs
+ *
  * @param input
+ * @param algorithm
  * @returns
  */
 export async function getEncodedHash(

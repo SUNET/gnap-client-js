@@ -11,7 +11,7 @@ import { HTTPMethods } from "../utils";
  *
  *
  *  13.2. Signing Requests from the Client Software
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-determining-authorization-a
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-signing-requests-from-the-c
  *
  */
 
@@ -34,8 +34,6 @@ import { HTTPMethods } from "../utils";
  */
 
 /**
- * JWSD and JWS
- *
  *  7.3.3. Detached JWS
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-detached-jws
  *  7.3.4. Attached JWS
@@ -50,7 +48,7 @@ import { HTTPMethods } from "../utils";
  * @param boundedAccessToken
  * @returns
  */
-export async function JWSRequestInit(
+export async function createJWSRequestInit(
   jwsType: ProofMethod,
   body: GrantRequest | ContinueRequest, // maybe this should work for any string, could be GrantRequest or ContinueRequest
   jwk: ECJWK | RSAJWK | SymmetricJWK,
@@ -59,6 +57,11 @@ export async function JWSRequestInit(
   transactionUrl: string,
   boundedAccessToken?: string // if the grant request is bounded to an access token
 ): Promise<RequestInit> {
+  /**
+   * createJWSRequestInit() could be self-configuring with a boundedAccessToken, if the previous GrandResponse is provided.
+   * At the moment it is the function that call createJWSRequestInit() that reads the previous GrantResponse and provide the boundedAccessToken to the createJWSRequestInit()
+   */
+
   // read alg and kid from jwk
   const alg = jwk["alg"] ?? "";
   const kid = jwk["kid"] ?? "";
@@ -76,7 +79,6 @@ export async function JWSRequestInit(
   if (jwsType === ProofMethod.JWS) typ = "gnap-binding+jws"; // "gnap-binding-jws" from version 19: Updated JOSE types to no longer use subtypes  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.2.2.2.1
   if (jwsType === ProofMethod.JWSD) typ = "gnap-binding+jwsd";
 
-  // TODO: Prepare the JWS Header by reading from the Grant Request / Response??
   const jwsHeader: CompactJWSHeaderParameters = {
     typ: typ,
     alg: alg,
@@ -115,22 +117,19 @@ export async function JWSRequestInit(
   }
 
   /**
-   * CREATE Request Init object by JWS types
+   * Request Init object by JWS types
    */
   let headers;
   let payload;
 
   if (jwsType === ProofMethod.JWS) {
-    // Request header
     headers = {
       "Content-Type": "application/jose",
     };
-    // Request payload
     payload = jws;
   }
 
   if (jwsType === ProofMethod.JWSD) {
-    // Request header
     /**
      * If the HTTP request has content, such as an HTTP POST or PUT method, the payload of the JWS object is the
      * Base64url encoding (without padding) of the SHA256 digest of the bytes of the content. If the request being
@@ -139,6 +138,7 @@ export async function JWSRequestInit(
      *
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-8
      */
+
     /**
      *
      * Appendix F.  Detached Content
@@ -160,18 +160,19 @@ export async function JWSRequestInit(
     // The signer presents the signed object in compact form [RFC7515] in the Detached-JWS HTTP Header field.
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.3-9
     headers = { "Content-Type": "application/json", "Detached-JWS": jwsdHeader };
-    // Request payload
     payload = JSON.stringify(body);
   }
 
   if (boundedAccessToken) {
-    // add Authorization header, as required from https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.2-4
+    // The access token MUST be sent using the HTTP "Authorization" request header field and the "GNAP" authorization
+    // scheme along with a key proof as described in Section 7.3 for the key bound to the access token.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.2-4
     headers = { ...headers, ...{ Authorization: `GNAP ${boundedAccessToken}` } };
   }
 
   const requestInit: RequestInit = {
-    method: htm, // linked to jwsHeader
-    headers: headers, // header with JWS signature or Detached-JWS
+    method: htm, // same as in jwsHeader
+    headers: headers,
     body: payload,
   };
 

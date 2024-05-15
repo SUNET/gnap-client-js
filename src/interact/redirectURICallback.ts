@@ -44,31 +44,34 @@ export async function getInteractionHash(
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-completing-interaction-with
  *
- * To be used only in a web browser flow
- *
  * The main goal for this function is to validate the URL parameters before the Continue Request
  *
  * @returns
  */
-export async function interactionCallback(): Promise<GrantResponse> {
+export async function redirectURICallback(): Promise<GrantResponse> {
   // if the flow comes here, the interaction is finished
   clearStorageInteractionExpirationTime();
 
   // Expected to find SessionStorage because it is a Redirect-based Interaction flow
   const previousGrantResponse = getStorageGrantResponse();
-  // Get "finish" token from the Interact object in the GrantResponse
-  const finish = previousGrantResponse.interact?.finish ?? "";
+  const finish = previousGrantResponse.interact?.finish;
+  if (!finish) {
+    throw new Error("Error reading GrantResponse or missing finish");
+  }
 
   // Get transaction URL from the CallbackConfig object
   const callbackConfig = getStorageCallbackConfig();
-  const transactionUrl = callbackConfig[TRANSACTION_URL] ?? "";
+  const transactionUrl = callbackConfig[TRANSACTION_URL];
+  if (!transactionUrl) {
+    throw new Error("Error reading GrantResponse or missing transactionUrl");
+  }
 
   // When receiving the request, the client instance MUST parse the query parameters
   // to extract the hash and interaction reference values.
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-4.2.1-7
   const searchParams = new URLSearchParams(window.location.search);
-  const hashURL = searchParams.get("hash") ?? "";
-  const interactRef = searchParams.get("interact_ref") ?? "";
+  const hashURL = searchParams.get("hash");
+  const interactRef = searchParams.get("interact_ref");
 
   if (!hashURL || !interactRef) {
     throw new Error("Error reading GrandResponse or missing interactRef");
@@ -95,13 +98,14 @@ export async function interactionCallback(): Promise<GrantResponse> {
 
   const grantResponse: GrantResponse = await continueRequest(continueObject, proofMethod, interactRef);
 
-  // Keep the specific flow logic in the "outer" function
+  // Keep the specific interaction flow logic in the "outer" function layer (not in core)
 
   // TODO: Verify that GrantResponse contains the access token, to consider successful the flow
   /**
    * If the AS has successfully granted one or more access tokens to the client instance, the AS responds
    * with the access_token field. This field contains either a single access token as described in Section 3.2.1
    * or an array of access tokens as described in Section 3.2.2.
+   *
    * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-access-tokens
    */
   if (!grantResponse.access_token) {
@@ -115,7 +119,11 @@ export async function interactionCallback(): Promise<GrantResponse> {
    * if the state is FINALIZED => clear the callbackConfig and grantResponse
    * if the state is APPROVED => clear all but keep what is needed for renew the token
    */
+
+  // specific for the Interaction Flow
   clearStorageCallbackConfig();
+  // GR is cleared here because there are other flows where the AS can answer directly with the access_token without
+  //needing an Interaction flow. For example:  1.6.5. Software-only Authorization, or pre-agreed keys?
   clearStorageGrantResponse();
 
   return grantResponse;

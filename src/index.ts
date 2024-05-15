@@ -11,5 +11,5 @@ function sayHi(name = "there") {
 export { sayHi };
 
 export * from "./typescript-client";
-export * from "./redirect/interactionStart";
-export * from "./redirect/interactionCallback";
+export * from "./interact/redirectURIStart";
+export * from "./interact/redirectURICallback";
