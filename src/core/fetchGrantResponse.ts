@@ -1,5 +1,16 @@
-import { setStorageGrantResponse, setStorageInteractionExpirationTime } from "../interact/sessionStorage";
-import { GrantResponse } from "typescript-client";
+import {
+  ClientKeysStorage,
+  JSON_WEB_KEY,
+  PRIVATE_KEY,
+  getStorageClientKeys,
+  setStorageGrantRequest,
+  setStorageGrantResponse,
+  setStorageInteractionExpirationTime,
+  setTransactionURL,
+} from "../interact/sessionStorage";
+import { ContinueRequest, GrantRequest, GrantResponse, ProofMethod } from "typescript-client";
+import { createJWSRequestInit } from "./securedRequestInit";
+import { HTTPMethods } from "../utils";
 
 /**
  * Send a GrantRequest, manage Response errors and route to the right flow based on the type of GrantResponse
@@ -10,10 +21,15 @@ import { GrantResponse } from "typescript-client";
  *  - errors (network errors) and the Grant flow errors
  *
  * @param transactionUrl
- * @param request
+ * @param requestInit
  * @returns
  */
-export async function fetchGrantResponse(transactionUrl: string, requestInit: RequestInit): Promise<GrantResponse> {
+export async function fetchGrantResponse(
+  transactionUrl: string,
+  body: GrantRequest | ContinueRequest,
+  proofMethod: ProofMethod, // probably this is required only in the first GrantRequest. On Continue, it is fetched from SessionStorage
+  boundAccessToken?: string // if the grant request is bound to an access token
+): Promise<GrantResponse> {
   try {
     /**
      * To start a request, the client instance sends an HTTP POST with a JSON [RFC8259] document to the grant endpoint of the AS.
@@ -30,12 +46,29 @@ export async function fetchGrantResponse(transactionUrl: string, requestInit: Re
      *
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-2-6
      */
-    const finalRequestInit: RequestInit = {
-      ...requestInit,
-      method: "POST",
-    };
 
-    const response = await fetch(transactionUrl, finalRequestInit);
+    // If it is a Interaction Redirect URI flow, save necessary data in SessionStorage
+    // if ((body as GrantRequest).interact) {
+    //   setStorageGrantRequest(body as GrantRequest);
+    //   setTransactionURL(transactionUrl);
+    // }
+
+    // At this point ClientKeys MUST be present
+    const clientKeys: ClientKeysStorage = getStorageClientKeys();
+
+    // Set here the HTTP method internally in fetchGrantResponse()
+    const requestInit: RequestInit = await createJWSRequestInit(
+      proofMethod,
+      body,
+      clientKeys[JSON_WEB_KEY],
+      clientKeys[PRIVATE_KEY],
+      HTTPMethods.POST, // this is moved internally in core/fetchGrantResponse()
+      transactionUrl,
+      boundAccessToken
+    );
+
+    // RUN THE GRANT REQUEST
+    const response = await fetch(transactionUrl, requestInit);
 
     /**
      * 3.6. Error Response
@@ -130,7 +163,11 @@ export async function fetchGrantResponse(transactionUrl: string, requestInit: Re
      *
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-interaction-modes
      */
+    // HERE IF THE SERVER ACCEPT THE INTERACTION...
     if (grantResponse.interact) {
+      // ... prepare for the URL forward / redirect URI
+      setStorageGrantRequest(body as GrantRequest);
+      setTransactionURL(transactionUrl);
       setStorageGrantResponse(grantResponse);
       const interactObject = grantResponse.interact;
       // expires_in (integer): The number of integer seconds after which this set of interaction responses will expire
@@ -158,6 +195,7 @@ export async function fetchGrantResponse(transactionUrl: string, requestInit: Re
        *
        */
       if (interactObject.redirect) {
+        // Force the browser redirect
         window.location.href = interactObject.redirect;
       } else {
         const notImplementedErrorText = "Only Interact Redirect flow has been implemented";

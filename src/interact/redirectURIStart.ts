@@ -1,13 +1,9 @@
 import { generateNonce } from "../cryptoUtils";
 import {
-  FINISH_NONCE,
   PRIVATE_KEY,
-  PROOF_METHOD,
-  TRANSACTION_URL,
   setStorageClientKeys,
   getStorageClientKeys,
   JSON_WEB_KEY,
-  setStorageCallbackConfig,
   ClientKeysStorage,
   PUBLIC_KEY,
 } from "./sessionStorage";
@@ -27,9 +23,7 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
 } from "../typescript-client";
-import { createJWSRequestInit } from "../core/securedRequestInit";
-import { HTTPMethods } from "../utils";
-import { createES256ClientKeys } from "../core/client";
+import { createClientKeysES256 } from "../core/client";
 
 /**
  *  1.6.2. Redirect-based Interaction
@@ -95,7 +89,7 @@ export async function redirectURIStart(
       clientKeys = getStorageClientKeys();
     } catch {
       // it is thrown an Error if there are no clientKeys in storage, then create and save keys in storage automatically
-      const [publicJwk, privateJwk, ellipticCurveJwk] = await createES256ClientKeys();
+      const [publicJwk, privateJwk, ellipticCurveJwk] = await createClientKeysES256();
       clientKeys = {
         [PRIVATE_KEY]: privateJwk,
         [PUBLIC_KEY]: publicJwk,
@@ -180,20 +174,5 @@ export async function redirectURIStart(
     interact: interact,
   };
 
-  const requestInit: RequestInit = await createJWSRequestInit(
-    proofMethod,
-    gr,
-    clientKeys[JSON_WEB_KEY],
-    clientKeys[PRIVATE_KEY] ?? "",
-    HTTPMethods.POST,
-    transactionUrl
-  );
-
-  setStorageCallbackConfig({
-    [FINISH_NONCE]: finishNonce,
-    [PROOF_METHOD]: proofMethod,
-    [TRANSACTION_URL]: transactionUrl,
-  });
-
-  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, requestInit);
+  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, gr, proofMethod);
 }

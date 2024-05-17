@@ -38,7 +38,7 @@ import { GenerateKeyPairOptions, JWK, exportJWK, generateKeyPair } from "jose";
  * Pre-configuration/hardcoded to use alg="ES256". Always valid?
  * @returns publicJwk, privateJwk, ellipticCurveJwk
  */
-export async function createES256ClientKeys(): Promise<Array<JWK>> {
+export async function createClientKeysES256(): Promise<Array<JWK>> {
   const alg = "ES256";
   const gpo: GenerateKeyPairOptions = {
     crv: "25519",

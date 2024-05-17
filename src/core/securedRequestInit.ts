@@ -45,7 +45,7 @@ import { HTTPMethods } from "../utils";
  * @param privateKey
  * @param htm
  * @param transactionUrl
- * @param boundedAccessToken
+ * @param boundAccessToken
  * @returns
  */
 export async function createJWSRequestInit(
@@ -55,11 +55,11 @@ export async function createJWSRequestInit(
   privateJwk: JWK,
   htm: HTTPMethods, // for example "POST"
   transactionUrl: string,
-  boundedAccessToken?: string // if the grant request is bounded to an access token
+  boundAccessToken?: string // if the grant request is bound to an access token
 ): Promise<RequestInit> {
   /**
-   * createJWSRequestInit() could be self-configuring with a boundedAccessToken, if the previous GrandResponse is provided.
-   * At the moment it is the function that call createJWSRequestInit() that reads the previous GrantResponse and provide the boundedAccessToken to the createJWSRequestInit()
+   * createJWSRequestInit() could be self-configuring with a boundAccessToken, if the previous GrandResponse is provided.
+   * At the moment it is the function that call createJWSRequestInit() that reads the previous GrantResponse and provide the boundAccessToken to the createJWSRequestInit()
    */
 
   // read alg and kid from jwk
@@ -92,8 +92,8 @@ export async function createJWSRequestInit(
   //    ath (string): The hash of the access token. The value MUST be the result of Base64url encoding (with no padding)
   //                  of the SHA-256 digest of the ASCII encoding of the associated access token's value.
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.3.4-7.2.1
-  if (boundedAccessToken) {
-    const accessTokenHash = await getEncodedHash(boundedAccessToken);
+  if (boundAccessToken) {
+    const accessTokenHash = await getEncodedHash(boundAccessToken);
     jwsHeader.ath = accessTokenHash;
   }
 
@@ -163,11 +163,11 @@ export async function createJWSRequestInit(
     payload = JSON.stringify(body);
   }
 
-  if (boundedAccessToken) {
+  if (boundAccessToken) {
     // The access token MUST be sent using the HTTP "Authorization" request header field and the "GNAP" authorization
     // scheme along with a key proof as described in Section 7.3 for the key bound to the access token.
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.2-4
-    headers = { ...headers, ...{ Authorization: `GNAP ${boundedAccessToken}` } };
+    headers = { ...headers, ...{ Authorization: `GNAP ${boundAccessToken}` } };
   }
 
   const requestInit: RequestInit = {

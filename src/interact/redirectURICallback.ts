@@ -1,15 +1,14 @@
 import {
-  FINISH_NONCE,
-  PROOF_METHOD,
-  TRANSACTION_URL,
-  clearStorageCallbackConfig,
+  clearStorageGrantRequest,
   clearStorageGrantResponse,
   clearStorageInteractionExpirationTime,
-  getStorageCallbackConfig,
+  clearTransactionURL,
+  getStorageGrantRequest,
   getStorageGrantResponse,
+  getTransactionURL,
 } from "./sessionStorage";
 import { continueRequest } from "../core/continueRequest";
-import { Continue, GrantResponse, ProofMethod } from "../typescript-client";
+import { Client, Continue, GrantResponse, Key_Input, ProofMethod } from "../typescript-client";
 import { getEncodedHash } from "../cryptoUtils";
 
 /**
@@ -52,19 +51,30 @@ export async function redirectURICallback(): Promise<GrantResponse> {
   // if the flow comes here, the interaction is finished
   clearStorageInteractionExpirationTime();
 
-  // Expected to find SessionStorage because it is a Redirect-based Interaction flow
-  const previousGrantResponse = getStorageGrantResponse();
-  const finish = previousGrantResponse.interact?.finish;
-  if (!finish) {
-    throw new Error("Error reading GrantResponse or missing finish");
+  // TODO: by reading the firstGrantRequest (how the client configure the Grant process) (and based on what)
+  // the client could self-configuring, by reading the values of GrantRequest and GrantResponse
+
+  // read the configuration from the GrantRequest
+  const grantRequest = getStorageGrantRequest();
+  const proofMethod: ProofMethod = ((grantRequest.client as Client).key as Key_Input).proof.method;
+  const requestFinishNonce = grantRequest.interact?.finish?.nonce;
+  if (!proofMethod || !requestFinishNonce) {
+    throw new Error("Error reading finishNonce or proofMethod");
   }
 
-  // Get transaction URL from the CallbackConfig object
-  const callbackConfig = getStorageCallbackConfig();
-  const transactionUrl = callbackConfig[TRANSACTION_URL];
-  if (!transactionUrl) {
-    throw new Error("Error reading GrantResponse or missing transactionUrl");
+  // Get transaction URL
+  const transactionUrl = getTransactionURL();
+
+  // Expected to find SessionStorage because it is a Redirect-based Interaction flow
+  const previousGrantResponse = getStorageGrantResponse();
+  const responseFinishNonce = previousGrantResponse.interact?.finish;
+  if (!responseFinishNonce) {
+    throw new Error("Error reading GrantResponse or missing finish");
   }
+  if (!previousGrantResponse.continue) {
+    throw new Error("Invalid previousGrantResponse Continue object");
+  }
+  const continueObject: Continue = previousGrantResponse.continue;
 
   // When receiving the request, the client instance MUST parse the query parameters
   // to extract the hash and interaction reference values.
@@ -74,7 +84,7 @@ export async function redirectURICallback(): Promise<GrantResponse> {
   const interactRef = searchParams.get("interact_ref");
 
   if (!hashURL || !interactRef) {
-    throw new Error("Error reading GrandResponse or missing interactRef");
+    throw new Error("Error reading hash or interact_ref query parameters");
   }
 
   // The client instance calculates a hash (Section 4.2.3) based on this information and continues only if the hash validates.
@@ -85,16 +95,15 @@ export async function redirectURICallback(): Promise<GrantResponse> {
   // using the interaction reference value received here. If the hash does not validate, the client instance
   // MUST NOT send the interaction reference to the AS.
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-4.2.1-7
-  const interactionHash = await getInteractionHash(callbackConfig[FINISH_NONCE], finish, interactRef, transactionUrl);
+  const interactionHash = await getInteractionHash(
+    requestFinishNonce,
+    responseFinishNonce,
+    interactRef,
+    transactionUrl
+  );
   if (interactionHash !== hashURL) {
     throw new Error("Invalid hash value");
   }
-
-  if (!previousGrantResponse.continue || !callbackConfig[PROOF_METHOD]) {
-    throw new Error("Invalid previousGrantResponse or ProofMethod");
-  }
-  const continueObject: Continue = previousGrantResponse.continue;
-  const proofMethod: ProofMethod = callbackConfig[PROOF_METHOD];
 
   const grantResponse: GrantResponse = await continueRequest(continueObject, proofMethod, interactRef);
 
@@ -121,7 +130,8 @@ export async function redirectURICallback(): Promise<GrantResponse> {
    */
 
   // specific for the Interaction Flow
-  clearStorageCallbackConfig();
+  clearTransactionURL();
+  clearStorageGrantRequest();
   // GR is cleared here because there are other flows where the AS can answer directly with the access_token without
   //needing an Interaction flow. For example:  1.6.5. Software-only Authorization, or pre-agreed keys?
   clearStorageGrantResponse();

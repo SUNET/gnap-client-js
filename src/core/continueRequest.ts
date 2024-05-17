@@ -42,8 +42,6 @@ export async function continueRequest(
   interactRef: string
 ): Promise<GrantResponse> {
   // in a continue request it is expected that the data is saved
-  const clientKeys = getStorageClientKeys();
-  const privateJwk = clientKeys[PRIVATE_KEY];
 
   if (!continueObject.uri || !continueObject.access_token?.value) {
     throw new Error("continueObject.uri or continueObject.access_token.value is missing");
@@ -69,17 +67,12 @@ export async function continueRequest(
     interact_ref: interactRef,
   };
 
-  const requestInit: RequestInit = await createJWSRequestInit(
-    proofMethod, // it is the same as in interactionStart()
-    continueRequestBody,
-    clientKeys[JSON_WEB_KEY],
-    privateJwk,
-    HTTPMethods.POST, // is it always POST?
+  const grantResponse: GrantResponse = await fetchGrantResponse(
     continueUrl,
+    continueRequestBody,
+    proofMethod,
     continuationAccessToken
   );
-
-  const grantResponse: GrantResponse = await fetchGrantResponse(continueUrl, requestInit);
 
   return grantResponse;
 }
