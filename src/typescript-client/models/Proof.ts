@@ -2,8 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { ProofMethod } from './ProofMethod';
-export type Proof = {
-    method: ProofMethod;
-};
+import type { ProofMethod } from "./ProofMethod";
 
+/**
+ *  7.3. Proving Possession of a Key with a Request
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#binding-keys
+ */
+export type Proof = {
+  method: ProofMethod;
+};

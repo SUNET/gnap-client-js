@@ -3,12 +3,21 @@ import {
   JSON_WEB_KEY,
   PRIVATE_KEY,
   getStorageClientKeys,
+  getStorageGrantRequest,
   setStorageGrantRequest,
   setStorageGrantResponse,
   setStorageInteractionExpirationTime,
   setTransactionURL,
 } from "../interact/sessionStorage";
-import { ContinueRequest, GrantRequest, GrantResponse, ProofMethod } from "typescript-client";
+import {
+  Client,
+  ContinueRequest,
+  GrantRequest,
+  GrantResponse,
+  ClientKey,
+  ProofMethod,
+  AccessTokenFlags,
+} from "../typescript-client";
 import { createJWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
 
@@ -27,7 +36,6 @@ import { HTTPMethods } from "../utils";
 export async function fetchGrantResponse(
   transactionUrl: string,
   body: GrantRequest | ContinueRequest,
-  proofMethod: ProofMethod, // probably this is required only in the first GrantRequest. On Continue, it is fetched from SessionStorage
   boundAccessToken?: string // if the grant request is bound to an access token
 ): Promise<GrantResponse> {
   try {
@@ -47,27 +55,50 @@ export async function fetchGrantResponse(
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-2-6
      */
 
-    // If it is a Interaction Redirect URI flow, save necessary data in SessionStorage
-    // if ((body as GrantRequest).interact) {
-    //   setStorageGrantRequest(body as GrantRequest);
-    //   setTransactionURL(transactionUrl);
-    // }
+    /**
+     * GrantRequest
+     */
+    // let continuationAccessToken: string;
+    let grantRequest: GrantRequest;
+    if ((body as ContinueRequest).interact_ref) {
+      // if it is a Continue request, is it always coming from Interact Redirect URI flow?
+      grantRequest = getStorageGrantRequest();
+      // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
+      // (Section 2.3) in its request for access.
+      //
+      // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
+
+      // if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key)
+      //   continuationAccessToken = continueObject.access_token.value;
+    } else {
+      grantRequest = body as GrantRequest;
+    }
+
+    const proofMethod: ProofMethod = ((grantRequest.client as Client).key as ClientKey).proof.method;
+
+    /**
+     * GrantRequest
+     */
 
     // At this point ClientKeys MUST be present
+    // Are the ClientKeys *always* present in SessionStorage??
     const clientKeys: ClientKeysStorage = getStorageClientKeys();
 
-    // Set here the HTTP method internally in fetchGrantResponse()
-    const requestInit: RequestInit = await createJWSRequestInit(
-      proofMethod,
-      body,
-      clientKeys[JSON_WEB_KEY],
-      clientKeys[PRIVATE_KEY],
-      HTTPMethods.POST, // this is moved internally in core/fetchGrantResponse()
-      transactionUrl,
-      boundAccessToken
-    );
+    let requestInit: RequestInit;
+    if (proofMethod === ProofMethod.JWS || proofMethod === ProofMethod.JWSD) {
+      requestInit = await createJWSRequestInit(
+        proofMethod,
+        body,
+        clientKeys[JSON_WEB_KEY],
+        clientKeys[PRIVATE_KEY],
+        HTTPMethods.POST, // always POST?
+        transactionUrl,
+        boundAccessToken
+      );
+    } else {
+      throw new Error("ProofMethod not supported");
+    }
 
-    // RUN THE GRANT REQUEST
     const response = await fetch(transactionUrl, requestInit);
 
     /**
@@ -152,35 +183,29 @@ export async function fetchGrantResponse(
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-request-continuation
      */
 
-    /**
-     *  3.3. Interaction Modes
-     *
-     * If the client instance has indicated a capability to interact with the RO in its request (Section 2.5),
-     * and the AS has determined that interaction is both supported and necessary, the AS responds to the client instance with
-     * any of the following values in the interact field of the response. There is no preference order for interaction modes in
-     * the response, and it is up to the client instance to determine which ones to use. All supported interaction methods are
-     * included in the same interact object
-     *
-     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-interaction-modes
-     */
-    // HERE IF THE SERVER ACCEPT THE INTERACTION...
-    if (grantResponse.interact) {
-      // ... prepare for the URL forward / redirect URI
-      setStorageGrantRequest(body as GrantRequest);
-      setTransactionURL(transactionUrl);
-      setStorageGrantResponse(grantResponse);
+    // Read the server answer to check what the AS is allowing or requesting
+    if (grantResponse.continue && grantResponse.interact) {
+      /**
+       *  3.3. Interaction Modes
+       *
+       * If the client instance has indicated a capability to interact with the RO in its request (Section 2.5),
+       * and the AS has determined that interaction is both supported and necessary, the AS responds to the client instance with
+       * any of the following values in the interact field of the response. There is no preference order for interaction modes in
+       * the response, and it is up to the client instance to determine which ones to use. All supported interaction methods are
+       * included in the same interact object
+       *
+       * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-interaction-modes
+       */
+
       const interactObject = grantResponse.interact;
-      // expires_in (integer): The number of integer seconds after which this set of interaction responses will expire
-      // and no longer be usable by the client instance.
-      // ...
-      // If omitted, the interaction response modes returned do not expire but MAY be invalidated by the AS at any time.
-      // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-3.3-2.12.1
-      if (interactObject.expires_in) {
-        setStorageInteractionExpirationTime(interactObject.expires_in);
-      }
 
       /**
        *  3.3.1. Redirection to an arbitrary URI
+       *
+       * If the client instance indicates that it can redirect to an arbitrary URI (Section 2.5.1.1) and the AS supports
+       * this mode for the client instance's request, the AS responds with the "redirect" field, which is a string containing
+       * the URI for the end user to visit.
+       *
        * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-redirection-to-an-arbitrary
        *
        *
@@ -195,6 +220,18 @@ export async function fetchGrantResponse(
        *
        */
       if (interactObject.redirect) {
+        // prepare for the redirect
+        setTransactionURL(transactionUrl);
+        setStorageGrantRequest(body as GrantRequest);
+        setStorageGrantResponse(grantResponse);
+        // expires_in (integer): The number of integer seconds after which this set of interaction responses will expire
+        //                       and no longer be usable by the client instance.
+        // ...
+        // If omitted, the interaction response modes returned do not expire but MAY be invalidated by the AS at any time.
+        // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-3.3-2.12.1
+        if (interactObject.expires_in) {
+          setStorageInteractionExpirationTime(interactObject.expires_in);
+        }
         // Force the browser redirect
         window.location.href = interactObject.redirect;
       } else {
@@ -202,15 +239,16 @@ export async function fetchGrantResponse(
         console.error(notImplementedErrorText);
         throw new Error(notImplementedErrorText);
       }
-    }
-
-    // fallback case with access token, when APPROVED?
-    /**
-     *  3. Grant Response
-     *
-     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-grant-response
-     */
-    if (grantResponse.access_token) {
+    } else if (grantResponse.access_token) {
+      /**
+       *  3.2. Access Tokens
+       *
+       * If the AS has successfully granted one or more access tokens to the client instance,
+       * the AS responds with the access_token field. This field contains either a single access token
+       * as described in Section 3.2.1 or an array of access tokens as described in Section 3.2.2.
+       *
+       * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-access-tokens
+       */
       // IF THERE IS A ERROR SHOULD THE SESSION STORAGE BE CLEARED?
     }
     return grantResponse;

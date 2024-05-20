@@ -2,6 +2,7 @@ import { getEncodedHash } from "../cryptoUtils";
 import { CompactJWSHeaderParameters, CompactSign, JWK, importJWK } from "jose";
 import { ContinueRequest, ECJWK, GrantRequest, ProofMethod, RSAJWK, SymmetricJWK } from "../typescript-client";
 import { HTTPMethods } from "../utils";
+import { error } from "console";
 
 /**
  * 7. Securing Requests from the Client Instance
@@ -62,9 +63,11 @@ export async function createJWSRequestInit(
    * At the moment it is the function that call createJWSRequestInit() that reads the previous GrantResponse and provide the boundAccessToken to the createJWSRequestInit()
    */
 
-  // read alg and kid from jwk
-  const alg = jwk["alg"] ?? "";
-  const kid = jwk["kid"] ?? "";
+  if (!jwk.alg || !jwk.kid) {
+    throw new Error("createJWSRequestInit: jwk must have alg and kid");
+  }
+  const alg = jwk["alg"];
+  const kid = jwk["kid"];
 
   /**
    * JWS HEADER

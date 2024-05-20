@@ -1,7 +1,4 @@
-import { GrantResponse, ContinueRequest, Continue, ProofMethod } from "../typescript-client";
-import { PRIVATE_KEY, JSON_WEB_KEY, getStorageClientKeys } from "../interact/sessionStorage";
-import { createJWSRequestInit } from "./securedRequestInit";
-import { HTTPMethods } from "../utils";
+import { GrantResponse, ContinueRequest, Continue, AccessTokenFlags } from "../typescript-client";
 import { fetchGrantResponse } from "./fetchGrantResponse";
 
 /**
@@ -32,15 +29,10 @@ import { fetchGrantResponse } from "./fetchGrantResponse";
  *
  *
  * @param continueObject
- * @param proofMethod
  * @param interactRef
  * @returns
  */
-export async function continueRequest(
-  continueObject: Continue,
-  proofMethod: ProofMethod,
-  interactRef: string
-): Promise<GrantResponse> {
+export async function continueRequest(continueObject: Continue, interactRef: string): Promise<GrantResponse> {
   // in a continue request it is expected that the data is saved
 
   if (!continueObject.uri || !continueObject.access_token?.value) {
@@ -58,11 +50,25 @@ export async function continueRequest(
   //
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.1-2.6.1
 
-  // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance (Section 2.3) in its request for access.
+  // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
+  // (Section 2.3) in its request for access.
   //
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
-  const continuationAccessToken = continueObject.access_token.value;
 
+  /**
+   * All requests to the continuation API are protected by a bound continuation access token. The continuation access token is bound
+   * to the same key and method the client instance used to make the initial request (or its most recent rotation). As a consequence,
+   * when the client instance makes any calls to the continuation URI, the client instance MUST present the continuation access token
+   * as described in Section 7.2 and present proof of the client instance's key (or its most recent rotation) by signing the request
+   * as described in Section 7.3.
+   *
+   * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-5-4
+   */
+  // let continuationAccessToken: string = "";
+  // if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key) {
+  //   continuationAccessToken = continueObject.access_token.value;
+  // }
+  const continuationAccessToken = continueObject.access_token.value;
   const continueRequestBody: ContinueRequest = {
     interact_ref: interactRef,
   };
@@ -70,7 +76,6 @@ export async function continueRequest(
   const grantResponse: GrantResponse = await fetchGrantResponse(
     continueUrl,
     continueRequestBody,
-    proofMethod,
     continuationAccessToken
   );
 

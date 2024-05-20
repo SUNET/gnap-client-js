@@ -8,35 +8,8 @@ import {
   getTransactionURL,
 } from "./sessionStorage";
 import { continueRequest } from "../core/continueRequest";
-import { Client, Continue, GrantResponse, Key_Input, ProofMethod } from "../typescript-client";
-import { getEncodedHash } from "../cryptoUtils";
-
-/**
- *  4.2.3. Calculating the interaction hash
- *
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-calculating-the-interaction
- *
- *
- *  13.25. Calculating Interaction Hash
- *
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-calculating-interaction-has
- *
- */
-
-export async function getInteractionHash(
-  finishNonce: string,
-  finish: string,
-  interactRef: string,
-  transactionUrl: string
-): Promise<string> {
-  try {
-    const hashBaseString = `${finishNonce}\n${finish}\n${interactRef}\n${transactionUrl}`;
-    return await getEncodedHash(hashBaseString);
-  } catch (error) {
-    console.error("getInteractionHash error", error);
-    throw new Error("getInteractionHash error");
-  }
-}
+import { Continue, GrantResponse } from "../typescript-client";
+import { getInteractionHash } from "./utils";
 
 /**
  *  4.2.1. Completing Interaction with a Browser Redirect to the Callback URI
@@ -56,13 +29,11 @@ export async function redirectURICallback(): Promise<GrantResponse> {
 
   // read the configuration from the GrantRequest
   const grantRequest = getStorageGrantRequest();
-  const proofMethod: ProofMethod = ((grantRequest.client as Client).key as Key_Input).proof.method;
   const requestFinishNonce = grantRequest.interact?.finish?.nonce;
-  if (!proofMethod || !requestFinishNonce) {
+  if (!requestFinishNonce) {
     throw new Error("Error reading finishNonce or proofMethod");
   }
 
-  // Get transaction URL
   const transactionUrl = getTransactionURL();
 
   // Expected to find SessionStorage because it is a Redirect-based Interaction flow
@@ -105,7 +76,7 @@ export async function redirectURICallback(): Promise<GrantResponse> {
     throw new Error("Invalid hash value");
   }
 
-  const grantResponse: GrantResponse = await continueRequest(continueObject, proofMethod, interactRef);
+  const grantResponse: GrantResponse = await continueRequest(continueObject, interactRef);
 
   // Keep the specific interaction flow logic in the "outer" function layer (not in core)
 

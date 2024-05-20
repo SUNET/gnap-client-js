@@ -51,7 +51,7 @@ import { createClientKeysES256 } from "../core/client";
 
 export async function redirectURIStart(
   transactionUrl: string,
-  proofMethod: ProofMethod, // configuration exposed to user
+  proofMethod: ProofMethod, // configuration exposed to user?
   redirectUrl: string,
   accessArray: Array<string | Access>,
   clientKeys?: ClientKeysStorage // allow the user pass the keys, especially in the case when the keys are already agreed with the server
@@ -140,7 +140,7 @@ export async function redirectURIStart(
     //  2.5.1.1. Redirect to an Arbitrary URI
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-redirect-to-an-arbitrary-ur
     start: [StartInteractionMethod.REDIRECT],
-    //  2.5.2.2. Receive an HTTP Direct Callback
+    //   2.5.2.1. Receive an HTTP Callback Through the Browser
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-receive-an-http-callback-th
     finish: {
       method: FinishInteractionMethod.REDIRECT,
@@ -167,12 +167,12 @@ export async function redirectURIStart(
    *
    * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-2-7
    */
-  const gr: GrantRequest = {
+  const grantRequest: GrantRequest = {
     access_token: atr,
     client: client,
     subject: subject,
     interact: interact,
   };
 
-  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, gr, proofMethod);
+  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, grantRequest);
 }

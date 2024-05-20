@@ -3,11 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export enum ProofMethod {
-    DPOP = 'dpop',
-    HTTPSIGN = 'httpsign',
-    JWSD = 'jwsd',
-    JWS = 'jws',
-    MTLS = 'mtls',
-    OAUTHPOP = 'oauthpop',
-    TEST = 'test',
+  HTTPSIGN = "httpsign",
+  JWSD = "jwsd",
+  JWS = "jws",
+  MTLS = "mtls",
 }

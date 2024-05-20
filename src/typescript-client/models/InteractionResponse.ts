@@ -2,13 +2,17 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { UserCodeURI } from './UserCodeURI';
-export type InteractionResponse = {
-    redirect?: (string | null);
-    app?: (string | null);
-    user_code?: (string | null);
-    user_code_uri?: (UserCodeURI | null);
-    finish?: (string | null);
-    expires_in?: (number | null);
-};
+import type { UserCodeURI } from "./UserCodeURI";
 
+/**
+ *  3.3. Interaction Modes
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#response-interact
+ */
+export type InteractionResponse = {
+  redirect?: string;
+  app?: string;
+  user_code?: string;
+  user_code_uri?: UserCodeURI;
+  finish?: string;
+  expires_in?: number;
+};
