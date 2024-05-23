@@ -4,7 +4,6 @@
 /* eslint-disable */
 import { AccessTokenFlags } from "./AccessTokenFlags";
 import { AccessTokenResponse } from "./AccessTokenResponse";
-import type { ContinueAccessToken } from "./ContinueAccessToken";
 
 /**
  *  3.1. Request Continuation

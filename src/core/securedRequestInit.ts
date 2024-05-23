@@ -1,8 +1,14 @@
 import { getEncodedHash } from "../cryptoUtils";
 import { CompactJWSHeaderParameters, CompactSign, JWK, importJWK } from "jose";
-import { ContinueRequest, ECJWK, GrantRequest, ProofMethod, RSAJWK, SymmetricJWK } from "../typescript-client";
+import {
+  ContinueRequestAfterInteraction,
+  ECJWK,
+  GrantRequest,
+  ProofMethod,
+  RSAJWK,
+  SymmetricJWK,
+} from "../typescript-client";
 import { HTTPMethods } from "../utils";
-import { error } from "console";
 
 /**
  * 7. Securing Requests from the Client Instance
@@ -51,7 +57,7 @@ import { error } from "console";
  */
 export async function createJWSRequestInit(
   jwsType: ProofMethod,
-  body: GrantRequest | ContinueRequest, // maybe this should work for any string, could be GrantRequest or ContinueRequest
+  body: GrantRequest | ContinueRequestAfterInteraction, // maybe this should work for any string, could be GrantRequest or ContinueRequest
   jwk: ECJWK | RSAJWK | SymmetricJWK,
   privateJwk: JWK,
   htm: HTTPMethods, // for example "POST"

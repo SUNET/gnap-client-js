@@ -1,14 +1,11 @@
 import {
-  clearStorageGrantRequest,
-  clearStorageGrantResponse,
   clearStorageInteractionExpirationTime,
-  clearTransactionURL,
   getStorageGrantRequest,
   getStorageGrantResponse,
-  getTransactionURL,
-} from "./sessionStorage";
+  getStorageTransactionURL,
+} from "../core/sessionStorage";
 import { continueRequest } from "../core/continueRequest";
-import { Continue, GrantResponse } from "../typescript-client";
+import { Continue, ContinueRequestAfterInteraction, GrantResponse } from "../typescript-client";
 import { getInteractionHash } from "./utils";
 
 /**
@@ -34,7 +31,7 @@ export async function redirectURICallback(): Promise<GrantResponse> {
     throw new Error("Error reading finishNonce or proofMethod");
   }
 
-  const transactionUrl = getTransactionURL();
+  const transactionUrl = getStorageTransactionURL();
 
   // Expected to find SessionStorage because it is a Redirect-based Interaction flow
   const previousGrantResponse = getStorageGrantResponse();
@@ -45,7 +42,6 @@ export async function redirectURICallback(): Promise<GrantResponse> {
   if (!previousGrantResponse.continue) {
     throw new Error("Invalid previousGrantResponse Continue object");
   }
-  const continueObject: Continue = previousGrantResponse.continue;
 
   // When receiving the request, the client instance MUST parse the query parameters
   // to extract the hash and interaction reference values.
@@ -76,7 +72,17 @@ export async function redirectURICallback(): Promise<GrantResponse> {
     throw new Error("Invalid hash value");
   }
 
-  const grantResponse: GrantResponse = await continueRequest(continueObject, interactRef);
+  /**
+   * 5.1. Continuing After a Completed Interaction
+   * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-continuing-after-a-complete
+   */
+  const continueRequestBody: ContinueRequestAfterInteraction = {
+    interact_ref: interactRef,
+  };
+
+  const continueObject: Continue = previousGrantResponse.continue;
+
+  const grantResponse: GrantResponse = await continueRequest(continueObject, continueRequestBody);
 
   // Keep the specific interaction flow logic in the "outer" function layer (not in core)
 
@@ -91,21 +97,6 @@ export async function redirectURICallback(): Promise<GrantResponse> {
   if (!grantResponse.access_token) {
     throw new Error("continueRequest Error: no access_token in response");
   }
-
-  // Keep always the clientKeys in the sessionStorage
-  // clientKeys has its own lifecycle separated from the GrantRequest lifecycle
-
-  /**
-   * if the state is FINALIZED => clear the callbackConfig and grantResponse
-   * if the state is APPROVED => clear all but keep what is needed for renew the token
-   */
-
-  // specific for the Interaction Flow
-  clearTransactionURL();
-  clearStorageGrantRequest();
-  // GR is cleared here because there are other flows where the AS can answer directly with the access_token without
-  //needing an Interaction flow. For example:  1.6.5. Software-only Authorization, or pre-agreed keys?
-  clearStorageGrantResponse();
 
   return grantResponse;
 }

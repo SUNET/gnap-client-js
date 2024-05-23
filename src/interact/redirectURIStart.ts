@@ -6,7 +6,7 @@ import {
   JSON_WEB_KEY,
   ClientKeysStorage,
   PUBLIC_KEY,
-} from "./sessionStorage";
+} from "../core/sessionStorage";
 import { fetchGrantResponse } from "../core/fetchGrantResponse";
 import {
   Access,

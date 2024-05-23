@@ -1,5 +1,5 @@
 import { JWK } from "jose";
-import { ECJWK, GrantRequest, GrantResponse, ProofMethod, RSAJWK, SymmetricJWK } from "typescript-client";
+import { ECJWK, GrantRequest, GrantResponse, RSAJWK, SymmetricJWK } from "typescript-client";
 
 export const GRANT_REQUEST = "GrantRequest";
 export const GRANT_RESPONSE = "GrantResponse";
@@ -34,15 +34,6 @@ export type ClientKeysStorage = {
   [JSON_WEB_KEY]: ECJWK | RSAJWK | SymmetricJWK;
 };
 
-// Interaction SessionStorage?
-export type SessionStorage = {
-  [CLIENT_KEYS]: ClientKeysStorage;
-  [TRANSACTION_URL]: string;
-  [GRANT_REQUEST]: GrantRequest;
-  [GRANT_RESPONSE]: GrantResponse;
-  [INTERACTION_EXPIRATION_TIME]: string; // number?
-};
-
 // ClientKeys
 export function setStorageClientKeys(clientKeysStorage: ClientKeysStorage) {
   console.log("ClientKeys saved in SessionStorage");
@@ -62,18 +53,18 @@ export function clearStorageClientKeys() {
   sessionStorage.removeItem(CLIENT_KEYS);
 }
 
-// TRANSACTION_URL
-export function setTransactionURL(transactionURL: string) {
+// Transaction URL
+export function setStorageTransactionURL(transactionURL: string) {
   sessionStorage.setItem(TRANSACTION_URL, transactionURL);
 }
-export function getTransactionURL() {
+export function getStorageTransactionURL() {
   const transactionURL = sessionStorage.getItem(TRANSACTION_URL);
   if (!transactionURL) {
     throw new Error("no callbackConfig found");
   }
   return transactionURL;
 }
-export function clearTransactionURL() {
+export function clearStorageTransactionURL() {
   sessionStorage.removeItem(TRANSACTION_URL);
 }
 

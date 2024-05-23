@@ -1,4 +1,4 @@
-import { GrantResponse, ContinueRequest, Continue, AccessTokenFlags } from "../typescript-client";
+import { GrantResponse, ContinueRequestAfterInteraction, Continue, GrantRequest } from "../typescript-client";
 import { fetchGrantResponse } from "./fetchGrantResponse";
 
 /**
@@ -32,8 +32,12 @@ import { fetchGrantResponse } from "./fetchGrantResponse";
  * @param interactRef
  * @returns
  */
-export async function continueRequest(continueObject: Continue, interactRef: string): Promise<GrantResponse> {
-  // in a continue request it is expected that the data is saved
+export async function continueRequest(
+  continueObject: Continue,
+  body: GrantRequest | ContinueRequestAfterInteraction
+): Promise<GrantResponse> {
+  // in a continue request it is expected that there the Continue object is already been sent by the AS
+  //
 
   if (!continueObject.uri || !continueObject.access_token?.value) {
     throw new Error("continueObject.uri or continueObject.access_token.value is missing");
@@ -69,15 +73,8 @@ export async function continueRequest(continueObject: Continue, interactRef: str
   //   continuationAccessToken = continueObject.access_token.value;
   // }
   const continuationAccessToken = continueObject.access_token.value;
-  const continueRequestBody: ContinueRequest = {
-    interact_ref: interactRef,
-  };
 
-  const grantResponse: GrantResponse = await fetchGrantResponse(
-    continueUrl,
-    continueRequestBody,
-    continuationAccessToken
-  );
+  const grantResponse: GrantResponse = await fetchGrantResponse(continueUrl, body, continuationAccessToken);
 
   return grantResponse;
 }

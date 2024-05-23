@@ -15,8 +15,7 @@ export type { Body_assertion_consumer_service_saml2_sp_saml2_acs_post } from "./
 export type { Body_user_code_finish_interaction_code_post } from "./models/Body_user_code_finish_interaction_code_post";
 export type { Client } from "./models/Client";
 export type { Continue } from "./models/Continue";
-export type { ContinueAccessToken } from "./models/ContinueAccessToken";
-export type { ContinueRequest } from "./models/ContinueRequest";
+export type { ContinueRequestAfterInteraction } from "./models/ContinueRequestAfterInteraction";
 export type { Display } from "./models/Display";
 export type { ECJWK } from "./models/ECJWK";
 export type { FinishInteraction } from "./models/FinishInteraction";

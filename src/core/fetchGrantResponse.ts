@@ -2,21 +2,24 @@ import {
   ClientKeysStorage,
   JSON_WEB_KEY,
   PRIVATE_KEY,
+  clearStorageGrantRequest,
+  clearStorageGrantResponse,
+  clearStorageTransactionURL,
   getStorageClientKeys,
   getStorageGrantRequest,
+  getStorageTransactionURL,
   setStorageGrantRequest,
   setStorageGrantResponse,
   setStorageInteractionExpirationTime,
-  setTransactionURL,
-} from "../interact/sessionStorage";
+  setStorageTransactionURL,
+} from "./sessionStorage";
 import {
   Client,
-  ContinueRequest,
+  ContinueRequestAfterInteraction,
   GrantRequest,
   GrantResponse,
   ClientKey,
   ProofMethod,
-  AccessTokenFlags,
 } from "../typescript-client";
 import { createJWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
@@ -35,7 +38,7 @@ import { HTTPMethods } from "../utils";
  */
 export async function fetchGrantResponse(
   transactionUrl: string,
-  body: GrantRequest | ContinueRequest,
+  body: GrantRequest | ContinueRequestAfterInteraction,
   boundAccessToken?: string // if the grant request is bound to an access token
 ): Promise<GrantResponse> {
   try {
@@ -59,9 +62,11 @@ export async function fetchGrantResponse(
      * GrantRequest
      */
     // let continuationAccessToken: string;
+
+    // GET proofMethod, independently if it is a first GrantRequest or a ContinueRequest After a Completed Interaction
     let grantRequest: GrantRequest;
-    if ((body as ContinueRequest).interact_ref) {
-      // if it is a Continue request, is it always coming from Interact Redirect URI flow?
+    if ((body as ContinueRequestAfterInteraction).interact_ref) {
+      // if it is a Continue request, is it always coming from Interact Redirect URI flow? NO, it could be a PATCH GrantRequest
       grantRequest = getStorageGrantRequest();
       // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
       // (Section 2.3) in its request for access.
@@ -79,6 +84,9 @@ export async function fetchGrantResponse(
     /**
      * GrantRequest
      */
+
+    // IF INTERACT:REDIRECT => Save keys in the storage
+    // Probably the Keys Should be passed directly to fetchGrantResponse()?
 
     // At this point ClientKeys MUST be present
     // Are the ClientKeys *always* present in SessionStorage??
@@ -184,7 +192,73 @@ export async function fetchGrantResponse(
      */
 
     // Read the server answer to check what the AS is allowing or requesting
+    // Can GrantResponse contains only "continue" or only "interact"?
+    /**
+     * 2.5. Interacting with the User
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-interacting-with-the-user
+     *
+     * 5. Continuing a Grant Request
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-continuing-a-grant-request
+     */
+
+    /**
+     * If the AS determines that the client instance can make further requests to the continuation API, the AS MUST include a
+     * new "continue" response (Section 3.1). The new continue response MUST include a continuation access token as well, and
+     * this token SHOULD be a new access token, invalidating the previous access token. If the AS does not return a new continue
+     * response, the client instance MUST NOT make an additional continuation request. If a client instance does so, the AS MUST
+     * return an invalid_continuation error (Section 3.6).
+     *
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-5-16
+     *
+     *
+     *   5.1. Continuing After a Completed Interaction
+     *
+     * Since the interaction reference is a one-time-use value as described in Section 4.2.1, if the client instance needs to make
+     * additional continuation calls after this request, the client instance MUST NOT include the interaction reference in subsequent
+     * calls. If the AS detects a client instance submitting an interaction reference when the request is not in the pending state,
+     * the AS MUST return a too_many_attempts error (Section 3.6) and SHOULD invalidate the ongoing request by moving it to the finalized state.
+     *
+     * If the grant request is in the approved state, the grant response (Section 3) MAY contain any newly-created access tokens (Section 3.2)
+     * or newly-released subject information (Section 3.4). The response MAY contain a new "continue" response (Section 3.1) as described above.
+     * The response SHOULD NOT contain any interaction responses (Section 3.3).
+     *
+     * If the grant request is in the pending state, the grant response (Section 3) MUST NOT contain access tokens or subject information,
+     * and MAY contain a new interaction responses (Section 3.3) to any interaction methods that have not been exhausted at the AS.
+     *
+     * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-continuing-after-a-complete
+     *
+     *
+     *  5.2. Continuing During Pending Interaction (Polling)
+     *  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-continuing-during-pending-i
+     *
+     *
+     *  5.3. Modifying an Existing Request
+     *  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-modifying-an-existing-reque
+     *
+     */
+
+    // Continue object should be there to reconnect to the AS after the interaction
+    // If not "Continue" in the GrantResponse => FINALIZED status
     if (grantResponse.continue && grantResponse.interact) {
+      // save necessary data for interaction and continue - in all flows? or this is only for web browser flows?
+      //  1.6.2. Redirect-based Interaction
+      //    2.5.1.1. Redirect to an Arbitrary URI
+      //  1.6.3. User-code Interaction
+      //   2.5.1.4. Display a Short User Code and URI
+      //  2.5.2.1. Receive an HTTP Callback Through the Browser
+      // START: "redirect",
+      // FINISH: "redirect"
+
+      /**
+       *  4.1.1. Interaction at a Redirected URI
+       * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-interaction-at-a-redirected
+       *
+       * 4.2.1. Completing Interaction with a Browser Redirect to the Callback URI
+       * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-completing-interaction-with
+       */
+      setStorageTransactionURL(transactionUrl);
+      setStorageGrantRequest(body as GrantRequest);
+      setStorageGrantResponse(grantResponse);
       /**
        *  3.3. Interaction Modes
        *
@@ -219,11 +293,11 @@ export async function fetchGrantResponse(
        * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-front-channel-uris
        *
        */
+
+      // INTERACT - Type REDIRECT
+      // TODO: should it be here verified (or choose) between what the server allows and what the client could prefer
+      // among the methods the client listed in the GrantRequest interact.start?
       if (interactObject.redirect) {
-        // prepare for the redirect
-        setTransactionURL(transactionUrl);
-        setStorageGrantRequest(body as GrantRequest);
-        setStorageGrantResponse(grantResponse);
         // expires_in (integer): The number of integer seconds after which this set of interaction responses will expire
         //                       and no longer be usable by the client instance.
         // ...
@@ -239,7 +313,9 @@ export async function fetchGrantResponse(
         console.error(notImplementedErrorText);
         throw new Error(notImplementedErrorText);
       }
-    } else if (grantResponse.access_token) {
+    }
+    // if there has been stored some information before in Session and the state is APPROVED/FINALIZED
+    else if (getStorageTransactionURL() && (grantResponse.access_token || grantResponse.subject)) {
       /**
        *  3.2. Access Tokens
        *
@@ -250,6 +326,21 @@ export async function fetchGrantResponse(
        * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-access-tokens
        */
       // IF THERE IS A ERROR SHOULD THE SESSION STORAGE BE CLEARED?
+
+      /**
+       * if the state is FINALIZED => clear the GrantRequest and grantResponse
+       * if the state is APPROVED => clear all but keep what is needed for renew the token
+       */
+
+      // specific for the Interaction Flow
+      clearStorageTransactionURL();
+      clearStorageGrantRequest();
+      // GR is cleared here because there are other flows where the AS can answer directly with the access_token without
+      //needing an Interaction flow. For example:  1.6.5. Software-only Authorization, or pre-agreed keys?
+      clearStorageGrantResponse();
+
+      // Keep always the clientKeys in the sessionStorage
+      // clientKeys has its own lifecycle separated from the GrantRequest lifecycle
     }
     return grantResponse;
   } catch (error) {
