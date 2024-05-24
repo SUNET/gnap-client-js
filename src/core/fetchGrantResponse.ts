@@ -1,13 +1,12 @@
 import {
-  ClientKeysStorage,
-  JSON_WEB_KEY,
-  PRIVATE_KEY,
   clearStorageGrantRequest,
   clearStorageGrantResponse,
+  clearStorageInteractionExpirationTime,
   clearStorageTransactionURL,
-  getStorageClientKeys,
   getStorageGrantRequest,
+  getStorageGrantResponse,
   getStorageTransactionURL,
+  setStorageClientPrivateJWK,
   setStorageGrantRequest,
   setStorageGrantResponse,
   setStorageInteractionExpirationTime,
@@ -17,12 +16,14 @@ import {
   Client,
   ContinueRequestAfterInteraction,
   GrantRequest,
-  GrantResponse,
   ClientKey,
   ProofMethod,
+  ECJWK,
+  GrantResponse,
 } from "../typescript-client";
 import { createJWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
+import { JWK } from "jose";
 
 /**
  * Send a GrantRequest, manage Response errors and route to the right flow based on the type of GrantResponse
@@ -39,6 +40,7 @@ import { HTTPMethods } from "../utils";
 export async function fetchGrantResponse(
   transactionUrl: string,
   body: GrantRequest | ContinueRequestAfterInteraction,
+  privateJWK: JWK,
   boundAccessToken?: string // if the grant request is bound to an access token
 ): Promise<GrantResponse> {
   try {
@@ -62,43 +64,43 @@ export async function fetchGrantResponse(
      * GrantRequest
      */
     // let continuationAccessToken: string;
-
     // GET proofMethod, independently if it is a first GrantRequest or a ContinueRequest After a Completed Interaction
-    let grantRequest: GrantRequest;
-    if ((body as ContinueRequestAfterInteraction).interact_ref) {
-      // if it is a Continue request, is it always coming from Interact Redirect URI flow? NO, it could be a PATCH GrantRequest
-      grantRequest = getStorageGrantRequest();
-      // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
-      // (Section 2.3) in its request for access.
-      //
-      // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
 
-      // if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key)
-      //   continuationAccessToken = continueObject.access_token.value;
-    } else {
-      grantRequest = body as GrantRequest;
+    // It could be checked if it a ContinueRequest by checking if there is a ContinueObject in the previous GrantResponse.
+    // This should be more general solution that just checking which kind of body is going to be sent
+    let grantRequest: GrantRequest;
+    try {
+      const previousGrantResponse: GrantResponse = getStorageGrantResponse();
+      if (previousGrantResponse.continue) {
+        grantRequest = getStorageGrantRequest();
+      } else {
+        grantRequest = body as GrantRequest;
+      }
+    } catch {
+      grantRequest = body as GrantRequest; // TODO: Fix here
     }
 
+    // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
+    // (Section 2.3) in its request for access.
+    //
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
+
+    // if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key)
+    //   continuationAccessToken = continueObject.access_token.value;
+
     const proofMethod: ProofMethod = ((grantRequest.client as Client).key as ClientKey).proof.method;
+    const jwk = ((grantRequest.client as Client).key as ClientKey).jwk as ECJWK;
 
     /**
      * GrantRequest
      */
-
-    // IF INTERACT:REDIRECT => Save keys in the storage
-    // Probably the Keys Should be passed directly to fetchGrantResponse()?
-
-    // At this point ClientKeys MUST be present
-    // Are the ClientKeys *always* present in SessionStorage??
-    const clientKeys: ClientKeysStorage = getStorageClientKeys();
-
     let requestInit: RequestInit;
     if (proofMethod === ProofMethod.JWS || proofMethod === ProofMethod.JWSD) {
       requestInit = await createJWSRequestInit(
         proofMethod,
         body,
-        clientKeys[JSON_WEB_KEY],
-        clientKeys[PRIVATE_KEY],
+        jwk,
+        privateJWK,
         HTTPMethods.POST, // always POST?
         transactionUrl,
         boundAccessToken
@@ -259,6 +261,7 @@ export async function fetchGrantResponse(
       setStorageTransactionURL(transactionUrl);
       setStorageGrantRequest(body as GrantRequest);
       setStorageGrantResponse(grantResponse);
+      setStorageClientPrivateJWK(privateJWK);
       /**
        *  3.3. Interaction Modes
        *
@@ -338,6 +341,9 @@ export async function fetchGrantResponse(
       // GR is cleared here because there are other flows where the AS can answer directly with the access_token without
       //needing an Interaction flow. For example:  1.6.5. Software-only Authorization, or pre-agreed keys?
       clearStorageGrantResponse();
+
+      // if the flow comes here, the interaction is finished
+      clearStorageInteractionExpirationTime();
 
       // Keep always the clientKeys in the sessionStorage
       // clientKeys has its own lifecycle separated from the GrantRequest lifecycle

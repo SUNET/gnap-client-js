@@ -1,19 +1,11 @@
 import { generateNonce } from "../cryptoUtils";
-import {
-  PRIVATE_KEY,
-  setStorageClientKeys,
-  getStorageClientKeys,
-  JSON_WEB_KEY,
-  ClientKeysStorage,
-  PUBLIC_KEY,
-} from "../core/sessionStorage";
+import { getStorageClientPrivateJWK } from "../core/sessionStorage";
 import { fetchGrantResponse } from "../core/fetchGrantResponse";
 import {
   Access,
   AccessTokenFlags,
   AccessTokenRequest,
   Client,
-  ECJWK,
   FinishInteractionMethod,
   GrantRequest,
   GrantResponse,
@@ -23,7 +15,8 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
 } from "../typescript-client";
-import { createClientKeysES256 } from "../core/client";
+import { createClientKeysPairES256, createClientPublicJWK } from "../core/client";
+import { JWK } from "jose";
 
 /**
  *  1.6.2. Redirect-based Interaction
@@ -54,7 +47,7 @@ export async function redirectURIStart(
   proofMethod: ProofMethod, // configuration exposed to user?
   redirectUrl: string,
   accessArray: Array<string | Access>,
-  clientKeys?: ClientKeysStorage // allow the user pass the keys, especially in the case when the keys are already agreed with the server
+  clientPrivateJWK?: JWK // allow the user pass the keys, especially in the case when the keys are already agreed with the server
 ): Promise<void> {
   // validation required parameters
   if (!transactionUrl || !redirectUrl) {
@@ -81,24 +74,25 @@ export async function redirectURIStart(
    *
    * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-identifying-the-client-inst
    */
-  if (clientKeys) {
-    setStorageClientKeys(clientKeys);
-  } else {
+
+  // if external application does not manage its client keys, then create/save/reuse the keys in storage automatically
+  if (!clientPrivateJWK) {
     try {
       // check if clientKeys exist already in storage (re-use)
-      clientKeys = getStorageClientKeys();
+      clientPrivateJWK = getStorageClientPrivateJWK();
     } catch {
       // it is thrown an Error if there are no clientKeys in storage, then create and save keys in storage automatically
-      const [publicJwk, privateJwk, ellipticCurveJwk] = await createClientKeysES256();
-      clientKeys = {
-        [PRIVATE_KEY]: privateJwk,
-        [PUBLIC_KEY]: publicJwk,
-        [JSON_WEB_KEY]: ellipticCurveJwk as ECJWK,
-      };
-      setStorageClientKeys(clientKeys);
+      const [publicJWK, privateJWK] = await createClientKeysPairES256();
+      // fetchGrantResponse() will take care of saving the Private key and the JWK for the GrantResponse that contains the public key
+      clientPrivateJWK = privateJWK;
     }
   }
-  const jwk = clientKeys[JSON_WEB_KEY];
+  // PrivateJWK seems always a extension of the PublicJWK. So it could necessary to save are reuse only clientPrivateJWK
+  // PublicJWK + alg + kid is saved in GrantRequest
+  const jwk = createClientPublicJWK(clientPrivateJWK);
+  if (!jwk) {
+    throw new Error("JWK is not defined");
+  }
 
   //  7.1.1. Key References
   // Keys in GNAP can also be passed by reference such that the party receiving the reference will
@@ -174,5 +168,5 @@ export async function redirectURIStart(
     interact: interact,
   };
 
-  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, grantRequest);
+  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, grantRequest, clientPrivateJWK);
 }

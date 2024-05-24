@@ -18,9 +18,6 @@ import { getInteractionHash } from "./utils";
  * @returns
  */
 export async function redirectURICallback(): Promise<GrantResponse> {
-  // if the flow comes here, the interaction is finished
-  clearStorageInteractionExpirationTime();
-
   // TODO: by reading the firstGrantRequest (how the client configure the Grant process) (and based on what)
   // the client could self-configuring, by reading the values of GrantRequest and GrantResponse
 

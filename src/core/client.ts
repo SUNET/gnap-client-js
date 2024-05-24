@@ -1,3 +1,4 @@
+import { ECJWK, KeyType } from "../typescript-client";
 import { generateNonce } from "../cryptoUtils";
 import { GenerateKeyPairOptions, JWK, exportJWK, generateKeyPair } from "jose";
 
@@ -36,31 +37,95 @@ import { GenerateKeyPairOptions, JWK, exportJWK, generateKeyPair } from "jose";
 /**
  * Generate key pair and jwt
  * Pre-configuration/hardcoded to use alg="ES256". Always valid?
- * @returns publicJwk, privateJwk, ellipticCurveJwk
+ * @returns publicJwk, privateJwk
  */
-export async function createClientKeysES256(): Promise<Array<JWK>> {
+export async function createClientKeysPairES256(): Promise<Array<JWK>> {
   const alg = "ES256";
   const gpo: GenerateKeyPairOptions = {
     crv: "25519",
     extractable: true,
   };
   const { publicKey, privateKey } = await generateKeyPair(alg, gpo);
-  const privateJwk = await exportJWK(privateKey);
-  const publicJwk = await exportJWK(publicKey);
 
-  const randomKid = generateNonce(32);
+  const privateJWK = await exportJWK(privateKey);
+  const publicJWK = await exportJWK(publicKey);
 
-  // jwk (object): The public key and its properties represented as a JSON Web Key [RFC7517].
-  //               A JWK MUST contain the alg (Algorithm) and kid (Key ID) parameters. The alg parameter MUST NOT be "none".
-  // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.1-5.2.1
-  const ellipticCurveJwk: JWK = {
-    alg: alg,
-    kid: randomKid,
-    kty: publicJwk.kty,
-    crv: publicJwk.crv,
-    x: publicJwk.x,
-    y: publicJwk.y,
-  };
+  // For ES256 PrivateJWK is the same as Public JWK plus "d" parameter
 
-  return [publicJwk, privateJwk, ellipticCurveJwk];
+  return [publicJWK, privateJWK];
+}
+
+/**
+ * RFC 7517 - JSON Web Key (JWK)
+ *
+ * 4.  JSON Web Key (JWK) Format
+ * https://datatracker.ietf.org/doc/html/rfc7517#section-4
+ *
+ *
+ * 
+ * RFC 7518 - JSON Web Algorithms (JWA)
+ *
+ * 6.  Cryptographic Algorithms for Keys
+ * https://datatracker.ietf.org/doc/html/rfc7518#section-6
+ * 
+ * 6.2.  Parameters for Elliptic Curve Keys
+ * 
+ * 6.2.2.  Parameters for Elliptic Curve Private Keys
+
+   In addition to the members used to represent Elliptic Curve public
+   keys, the following member MUST be present to represent Elliptic
+   Curve private keys.
+
+6.2.2.1.  "d" (ECC Private Key) Parameter
+ *
+ * https://datatracker.ietf.org/doc/html/rfc7518#section-6.2
+ *
+ * @param publicJwk
+ * @param kid
+ * @param alg
+ * @returns
+ */
+export function createClientPublicJWK(privateJWK: JWK): ECJWK {
+  if (privateJWK.kty == KeyType.EC) {
+    const publicJWK: JWK = {};
+    Object.assign(publicJWK, privateJWK);
+    delete publicJWK.d; // clean the private key from the private parameters
+
+    // JWKS - JWK Set? JWKS requires "alg" and "kid" parameters
+
+    // jwk (object): The public key and its properties represented as a JSON Web Key [RFC7517].
+    //               A JWK MUST contain the alg (Algorithm) and kid (Key ID) parameters. The alg parameter MUST NOT be "none".
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.1-5.2.1
+
+    /**
+     * 3.1.  "alg" (Algorithm) Header Parameter Values for JWS
+     * https://www.rfc-editor.org/rfc/rfc7518#section-3.1
+     */
+    let alg;
+    switch (publicJWK.crv) {
+      case "P-256":
+        alg = "ES256";
+        break;
+      case "P-384":
+        alg = "ES384";
+        break;
+      case "P-521":
+        alg = "ES512";
+        break;
+      default:
+        throw new Error("Not supported curve");
+    }
+
+    const randomKid = generateNonce(32);
+
+    const ellipticCurveJwk = {
+      ...publicJWK,
+      alg: alg,
+      kid: randomKid,
+    };
+
+    return ellipticCurveJwk as ECJWK;
+  } else {
+    throw new Error("Not supported key type");
+  }
 }

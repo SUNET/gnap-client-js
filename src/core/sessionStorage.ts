@@ -1,11 +1,12 @@
 import { JWK } from "jose";
-import { ECJWK, GrantRequest, GrantResponse, RSAJWK, SymmetricJWK } from "typescript-client";
+import { GrantRequest, GrantResponse } from "typescript-client";
 
 export const GRANT_REQUEST = "GrantRequest";
 export const GRANT_RESPONSE = "GrantResponse";
 export const INTERACTION_EXPIRATION_TIME = "InteractionExpirationTime";
 export const FINISH_NONCE = "FinishNonce";
-export const CLIENT_KEYS = "ClientKeys";
+export const CLIENT_KEYS = "ClientKeysPair";
+export const CLIENT_PRIVATE_JWK = "ClientPrivateJWK";
 export const JSON_WEB_KEY = "JSONWebKey";
 export const KEY_ID = "KeyID";
 export const ALGORITHM = "Algorithm"; // it will be set to JWT key "alg"
@@ -28,29 +29,25 @@ export const CALLBACK_CONFIG = "CallbackConfig";
  *
  */
 
-export type ClientKeysStorage = {
-  [PRIVATE_KEY]: JWK;
-  [PUBLIC_KEY]: JWK;
-  [JSON_WEB_KEY]: ECJWK | RSAJWK | SymmetricJWK;
-};
+// Can ClientKeysStorage be saved as a JWKS - JWK Set?
+// A.2.  Example Private Keys
+// https://datatracker.ietf.org/doc/html/rfc7517#appendix-A.2
 
-// ClientKeys
-export function setStorageClientKeys(clientKeysStorage: ClientKeysStorage) {
-  console.log("ClientKeys saved in SessionStorage");
-  sessionStorage.setItem(CLIENT_KEYS, JSON.stringify(clientKeysStorage));
+// StorageClientPrivateJWK
+export function setStorageClientPrivateJWK(jwk: JWK) {
+  sessionStorage.setItem(CLIENT_PRIVATE_JWK, JSON.stringify(jwk));
 }
-export function getStorageClientKeys() {
-  const clientKeysString = sessionStorage.getItem(CLIENT_KEYS);
-  if (!clientKeysString) {
-    console.log("ClientKeys not found");
-    throw new Error("no clientKeysStorage found");
+export function getStorageClientPrivateJWK() {
+  const clientPrivateJWKString = sessionStorage.getItem(CLIENT_PRIVATE_JWK);
+  if (!clientPrivateJWKString) {
+    console.error("ClientPrivateJWK not found");
+    throw new Error("no ClientPrivateJWK found");
   }
-  console.log("ClientKeys found");
-  const clientKeysStorage: ClientKeysStorage = JSON.parse(clientKeysString);
-  return clientKeysStorage;
+  const clientPrivateJWK: JWK = JSON.parse(clientPrivateJWKString);
+  return clientPrivateJWK;
 }
-export function clearStorageClientKeys() {
-  sessionStorage.removeItem(CLIENT_KEYS);
+export function clearStorageClientPrivateJWK() {
+  sessionStorage.removeItem(CLIENT_PRIVATE_JWK);
 }
 
 // Transaction URL
