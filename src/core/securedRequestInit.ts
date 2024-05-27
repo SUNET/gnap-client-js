@@ -48,8 +48,8 @@ import { HTTPMethods } from "../utils";
  *
  * @param jwsType
  * @param body
- * @param jwk
- * @param privateKey
+ * @param publicJWK
+ * @param privateJWK
  * @param htm
  * @param transactionUrl
  * @param boundAccessToken
@@ -58,8 +58,8 @@ import { HTTPMethods } from "../utils";
 export async function createJWSRequestInit(
   jwsType: ProofMethod,
   body: GrantRequest | ContinueRequestAfterInteraction, // maybe this should work for any string, could be GrantRequest or ContinueRequest
-  jwk: ECJWK | RSAJWK | SymmetricJWK,
-  privateJwk: JWK,
+  publicJWK: ECJWK | RSAJWK | SymmetricJWK,
+  privateJWK: JWK,
   htm: HTTPMethods, // for example "POST"
   transactionUrl: string,
   boundAccessToken?: string // if the grant request is bound to an access token
@@ -69,11 +69,11 @@ export async function createJWSRequestInit(
    * At the moment it is the function that call createJWSRequestInit() that reads the previous GrantResponse and provide the boundAccessToken to the createJWSRequestInit()
    */
 
-  if (!jwk.alg || !jwk.kid) {
-    throw new Error("createJWSRequestInit: jwk must have alg and kid");
+  if (!publicJWK.alg || !publicJWK.kid) {
+    throw new Error("createJWSRequestInit: publicJWK must have alg and kid");
   }
-  const alg = jwk["alg"];
-  const kid = jwk["kid"];
+  const alg = publicJWK["alg"];
+  const kid = publicJWK["kid"];
 
   /**
    * JWS HEADER
@@ -106,7 +106,7 @@ export async function createJWSRequestInit(
     jwsHeader.ath = accessTokenHash;
   }
 
-  const privateKey = await importJWK(privateJwk, alg);
+  const privateKey = await importJWK(privateJWK, alg);
 
   let jws;
   // If the HTTP request has content, such as an HTTP POST or PUT method, the payload of the JWS object is the JSON serialized

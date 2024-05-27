@@ -1,9 +1,4 @@
-import {
-  clearStorageInteractionExpirationTime,
-  getStorageGrantRequest,
-  getStorageGrantResponse,
-  getStorageTransactionURL,
-} from "../core/sessionStorage";
+import { getStorageGrantRequest, getStorageGrantResponse, getStorageTransactionURL } from "../core/sessionStorage";
 import { continueRequest } from "../core/continueRequest";
 import { Continue, ContinueRequestAfterInteraction, GrantResponse } from "../typescript-client";
 import { getInteractionHash } from "./utils";
@@ -18,10 +13,8 @@ import { getInteractionHash } from "./utils";
  * @returns
  */
 export async function redirectURICallback(): Promise<GrantResponse> {
-  // TODO: by reading the firstGrantRequest (how the client configure the Grant process) (and based on what)
-  // the client could self-configuring, by reading the values of GrantRequest and GrantResponse
+  // the client can self-configure, by reading the values of GrantRequest and GrantResponse
 
-  // read the configuration from the GrantRequest
   const grantRequest = getStorageGrantRequest();
   const requestFinishNonce = grantRequest.interact?.finish?.nonce;
   if (!requestFinishNonce) {

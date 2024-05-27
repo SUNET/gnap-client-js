@@ -36,8 +36,11 @@ import { GenerateKeyPairOptions, JWK, exportJWK, generateKeyPair } from "jose";
 
 /**
  * Generate key pair and jwt
- * Pre-configuration/hardcoded to use alg="ES256". Always valid?
- * @returns publicJwk, privateJwk
+ * Pre-configuration/hardcoded to use alg="ES256".
+ *
+ * This is just a configuration function for the JOSE generateKeyPair()
+ *
+ * @returns publicJWK, privateJWK
  */
 export async function createClientKeysPairES256(): Promise<Array<JWK>> {
   const alg = "ES256";
@@ -50,8 +53,6 @@ export async function createClientKeysPairES256(): Promise<Array<JWK>> {
   const privateJWK = await exportJWK(privateKey);
   const publicJWK = await exportJWK(publicKey);
 
-  // For ES256 PrivateJWK is the same as Public JWK plus "d" parameter
-
   return [publicJWK, privateJWK];
 }
 
@@ -62,21 +63,21 @@ export async function createClientKeysPairES256(): Promise<Array<JWK>> {
  * https://datatracker.ietf.org/doc/html/rfc7517#section-4
  *
  *
- * 
+ *
  * RFC 7518 - JSON Web Algorithms (JWA)
  *
  * 6.  Cryptographic Algorithms for Keys
  * https://datatracker.ietf.org/doc/html/rfc7518#section-6
- * 
+ *
  * 6.2.  Parameters for Elliptic Curve Keys
- * 
+ *
  * 6.2.2.  Parameters for Elliptic Curve Private Keys
-
-   In addition to the members used to represent Elliptic Curve public
-   keys, the following member MUST be present to represent Elliptic
-   Curve private keys.
-
-6.2.2.1.  "d" (ECC Private Key) Parameter
+ *
+ *  In addition to the members used to represent Elliptic Curve public
+ *  keys, the following member MUST be present to represent Elliptic
+ *  Curve private keys.
+ *
+ * 6.2.2.1.  "d" (ECC Private Key) Parameter
  *
  * https://datatracker.ietf.org/doc/html/rfc7518#section-6.2
  *
@@ -87,9 +88,11 @@ export async function createClientKeysPairES256(): Promise<Array<JWK>> {
  */
 export function createClientPublicJWK(privateJWK: JWK): ECJWK {
   if (privateJWK.kty == KeyType.EC) {
-    const publicJWK: JWK = {};
+    let publicJWK: JWK = {};
+
+    // clean the private key from the private parameters
     Object.assign(publicJWK, privateJWK);
-    delete publicJWK.d; // clean the private key from the private parameters
+    delete publicJWK.d;
 
     // JWKS - JWK Set? JWKS requires "alg" and "kid" parameters
 
@@ -115,16 +118,20 @@ export function createClientPublicJWK(privateJWK: JWK): ECJWK {
       default:
         throw new Error("Not supported curve");
     }
-
-    const randomKid = generateNonce(32);
-
-    const ellipticCurveJwk = {
+    publicJWK = {
       ...publicJWK,
       alg: alg,
-      kid: randomKid,
     };
 
-    return ellipticCurveJwk as ECJWK;
+    // if privateJWK does not have its own "kid" parameter, create and add one
+    if (!publicJWK.kid) {
+      publicJWK = {
+        ...publicJWK,
+        kid: generateNonce(32),
+      };
+    }
+
+    return publicJWK as ECJWK;
   } else {
     throw new Error("Not supported key type");
   }
