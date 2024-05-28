@@ -1,7 +1,6 @@
-import { JWK } from "jose";
 import { GrantResponse, ContinueRequestAfterInteraction, Continue, GrantRequest } from "../typescript-client";
 import { fetchGrantResponse } from "./fetchGrantResponse";
-import { getStorageClientPrivateJWK } from "./sessionStorage";
+import { ClientKeysJWK, getStorageClientKeysJWK } from "./sessionStorage";
 
 /**
  * 5. Continuing a Grant Request
@@ -76,12 +75,12 @@ export async function continueRequest(
   // }
   const continuationAccessToken = continueObject.access_token.value;
 
-  const clientPrivateJWK: JWK = getStorageClientPrivateJWK();
+  const clientKeysJWK: ClientKeysJWK = getStorageClientKeysJWK();
 
   const grantResponse: GrantResponse = await fetchGrantResponse(
     continueUrl,
     body,
-    clientPrivateJWK,
+    clientKeysJWK,
     continuationAccessToken
   );
 

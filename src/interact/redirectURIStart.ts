@@ -1,9 +1,8 @@
-import { getStorageClientPrivateJWK } from "../core/sessionStorage";
+import { ClientKeysJWK, getStorageClientKeysJWK } from "../core/sessionStorage";
 import { fetchGrantResponse } from "../core/fetchGrantResponse";
-import { Access, GrantRequest, GrantResponse, ProofMethod } from "../typescript-client";
-import { createClientKeysPairES256, createClientPublicJWK } from "../core/clientJWK";
-import { JWK } from "jose";
-import { createInteractRedirectURIGrantRequest } from "./createGrantRequest";
+import { Access, ECJWK, GrantRequest, GrantResponse, ProofMethod } from "../typescript-client";
+import { createClientKeysJWKPair, normalizeClientKeysJWK } from "../core/clientJWK";
+import { createRedirectURIGrantRequest } from "./createRedirectURIGrantRequest";
 
 /**
  *  1.6.2. Redirect-based Interaction
@@ -17,60 +16,47 @@ import { createInteractRedirectURIGrantRequest } from "./createGrantRequest";
  *
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-redirect-based-interaction
  *
+ *
  *  C.1. Redirect-Based User Interaction
  * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#name-redirect-based-user-interac
- *
- * Implementation wrapper for Redirect-based Interaction
- * To be used only in web browsers
- */
-
-/**
- *  2. Requesting Access
- * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-requesting-access
  */
 
 export async function redirectURIStart(
-  // redirect-based interaction configuration
-  redirectUrl: string,
-  // object of GrantRequest
-  accessArray: Array<string | Access>,
+  redirectUrl: string, // redirect-based interaction configuration
+  accessArray: Array<string | Access>, // scope to access, that will be passed to GrantRequest
   // from here configuration related to generic GNAP protocol
   transactionUrl: string,
-  proofMethod: ProofMethod, // configuration exposed to user?
-  clientPrivateJWK?: JWK // allow the user pass the keys, especially in the case when the keys are already agreed with the server
+  proofMethod: ProofMethod, // technical configuration exposed to user. Is it necessary? Use a default value?
+  clientKeysJWK?: ClientKeysJWK // allow the external application to pass the keys, it could be needed in the case when the keys are already agreed with the server
 ): Promise<void> {
-  // validation required parameters
   if (!transactionUrl || !redirectUrl) {
     throw new Error("Missing required parameters: transactionUrl, redirectUrl");
   }
 
-  // if external application does not manage its client keys, then create/save/reuse the keys in storage automatically
-  if (!clientPrivateJWK) {
+  // if external application does not pass its client keys, then create/save/reuse the keys in storage automatically
+  if (!clientKeysJWK) {
     try {
-      // check if clientKeys exist already in storage (re-use)
-      clientPrivateJWK = getStorageClientPrivateJWK();
+      // check if clientKeys exist already in storage then re-use them
+      clientKeysJWK = getStorageClientKeysJWK();
     } catch {
-      // if it is thrown an Error if there are no clientKeys in storage, then create and save keys in storage automatically
-      const [publicJWK, privateJWK] = await createClientKeysPairES256();
-      // fetchGrantResponse() will take care of saving the Private key and the JWK for the GrantResponse that contains the public key
-      clientPrivateJWK = privateJWK;
+      // if getStorageClientKeysJWK() throws an Error then there are no clientKeys in storage, so create new keys
+      // fetchGrantResponse() will take care of saving the clientKeys in the Storage.
+      // clientKeysJWK.publicJWK will be also part of GrantResponse, which will be also saved in GrantRequest
+      clientKeysJWK = await createClientKeysJWKPair("ES256");
     }
   }
-  // PrivateJWK seems always a extension of the PublicJWK. So it could necessary to save are reuse only clientPrivateJWK
-  // PublicJWK + alg + kid is saved in GrantRequest
-  const clientPublicJWK = createClientPublicJWK(clientPrivateJWK);
-  if (!clientPublicJWK) {
-    throw new Error("JWK is not defined");
-  }
+  // alg and kid are required in the clientKeysJWK. If they are not present, generate them
+  // Should normalizeClientKeysJWK() moved to fetchGrantResponse() to be more general?
+  clientKeysJWK = normalizeClientKeysJWK(clientKeysJWK);
 
-  const grantRequest: GrantRequest = createInteractRedirectURIGrantRequest(
+  const grantRequest: GrantRequest = createRedirectURIGrantRequest(
     redirectUrl,
     accessArray,
     proofMethod,
-    clientPublicJWK
+    clientKeysJWK.publicJWK as ECJWK
   );
 
-  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, grantRequest, clientPrivateJWK);
+  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, grantRequest, clientKeysJWK);
 
   // Nothing to return because it is expected to forward the browser to the redirect URI (in fetchGrantResponse())
 }

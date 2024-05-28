@@ -5,8 +5,7 @@ export const GRANT_REQUEST = "GrantRequest";
 export const GRANT_RESPONSE = "GrantResponse";
 export const INTERACTION_EXPIRATION_TIME = "InteractionExpirationTime";
 export const FINISH_NONCE = "FinishNonce";
-export const CLIENT_KEYS = "ClientKeysPair";
-export const CLIENT_PRIVATE_JWK = "ClientPrivateJWK";
+export const CLIENT_KEYS = "ClientKeysJWK";
 export const JSON_WEB_KEY = "JSONWebKey";
 export const KEY_ID = "KeyID";
 export const ALGORITHM = "Algorithm"; // it will be set to JWT key "alg"
@@ -33,21 +32,26 @@ export const CALLBACK_CONFIG = "CallbackConfig";
 // A.2.  Example Private Keys
 // https://datatracker.ietf.org/doc/html/rfc7517#appendix-A.2
 
-// StorageClientPrivateJWK
-export function setStorageClientPrivateJWK(jwk: JWK) {
-  sessionStorage.setItem(CLIENT_PRIVATE_JWK, JSON.stringify(jwk));
+export type ClientKeysJWK = {
+  publicJWK: JWK;
+  privateJWK: JWK;
+};
+
+// StorageClientKeysJWK
+export function setStorageClientKeysJWK(clientKeysJWK: ClientKeysJWK) {
+  sessionStorage.setItem(CLIENT_KEYS, JSON.stringify(clientKeysJWK));
 }
-export function getStorageClientPrivateJWK() {
-  const clientPrivateJWKString = sessionStorage.getItem(CLIENT_PRIVATE_JWK);
-  if (!clientPrivateJWKString) {
-    console.error("ClientPrivateJWK not found");
-    throw new Error("no ClientPrivateJWK found");
+export function getStorageClientKeysJWK() {
+  const clientKeysJWKString = sessionStorage.getItem(CLIENT_KEYS);
+  if (!clientKeysJWKString) {
+    console.error("clientKeysJWK not found");
+    throw new Error("no clientKeysJWK found");
   }
-  const clientPrivateJWK: JWK = JSON.parse(clientPrivateJWKString);
-  return clientPrivateJWK;
+  const clientKeysJWK: ClientKeysJWK = JSON.parse(clientKeysJWKString);
+  return clientKeysJWK;
 }
-export function clearStorageClientPrivateJWK() {
-  sessionStorage.removeItem(CLIENT_PRIVATE_JWK);
+export function clearStorageClientKeysJWK() {
+  sessionStorage.removeItem(CLIENT_KEYS);
 }
 
 // Transaction URL

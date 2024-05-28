@@ -1,7 +1,7 @@
 import { getStorageGrantRequest, getStorageGrantResponse, getStorageTransactionURL } from "../core/sessionStorage";
 import { continueRequest } from "../core/continueRequest";
 import { Continue, ContinueRequestAfterInteraction, GrantResponse } from "../typescript-client";
-import { getInteractionHash } from "./utils";
+import { getInteractionHash } from "./interactionHash";
 
 /**
  *  4.2.1. Completing Interaction with a Browser Redirect to the Callback URI
@@ -14,16 +14,13 @@ import { getInteractionHash } from "./utils";
  */
 export async function redirectURICallback(): Promise<GrantResponse> {
   // the client can self-configure, by reading the values of GrantRequest and GrantResponse
-
+  // Expected to find SessionStorage because it is a Redirect-based Interaction flow
   const grantRequest = getStorageGrantRequest();
   const requestFinishNonce = grantRequest.interact?.finish?.nonce;
   if (!requestFinishNonce) {
     throw new Error("Error reading finishNonce or proofMethod");
   }
 
-  const transactionUrl = getStorageTransactionURL();
-
-  // Expected to find SessionStorage because it is a Redirect-based Interaction flow
   const previousGrantResponse = getStorageGrantResponse();
   const responseFinishNonce = previousGrantResponse.interact?.finish;
   if (!responseFinishNonce) {
@@ -43,6 +40,8 @@ export async function redirectURICallback(): Promise<GrantResponse> {
   if (!hashURL || !interactRef) {
     throw new Error("Error reading hash or interact_ref query parameters");
   }
+
+  const transactionUrl = getStorageTransactionURL();
 
   // The client instance calculates a hash (Section 4.2.3) based on this information and continues only if the hash validates.
   // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-1.6.2-3.7.1
@@ -66,13 +65,13 @@ export async function redirectURICallback(): Promise<GrantResponse> {
    * 5.1. Continuing After a Completed Interaction
    * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-continuing-after-a-complete
    */
-  const continueRequestBody: ContinueRequestAfterInteraction = {
+  const continueRequestAfterInteractionBody: ContinueRequestAfterInteraction = {
     interact_ref: interactRef,
   };
 
   const continueObject: Continue = previousGrantResponse.continue;
 
-  const grantResponse: GrantResponse = await continueRequest(continueObject, continueRequestBody);
+  const grantResponse: GrantResponse = await continueRequest(continueObject, continueRequestAfterInteractionBody);
 
   // Keep the specific interaction flow logic in the "outer" function layer (not in core)
 

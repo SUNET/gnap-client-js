@@ -58,7 +58,6 @@ import { HTTPMethods } from "../utils";
 export async function createJWSRequestInit(
   jwsType: ProofMethod,
   body: GrantRequest | ContinueRequestAfterInteraction, // maybe this should work for any string, could be GrantRequest or ContinueRequest
-  publicJWK: ECJWK | RSAJWK | SymmetricJWK,
   privateJWK: JWK,
   htm: HTTPMethods, // for example "POST"
   transactionUrl: string,
@@ -69,11 +68,11 @@ export async function createJWSRequestInit(
    * At the moment it is the function that call createJWSRequestInit() that reads the previous GrantResponse and provide the boundAccessToken to the createJWSRequestInit()
    */
 
-  if (!publicJWK.alg || !publicJWK.kid) {
+  if (!privateJWK.alg || !privateJWK.kid) {
     throw new Error("createJWSRequestInit: publicJWK must have alg and kid");
   }
-  const alg = publicJWK["alg"];
-  const kid = publicJWK["kid"];
+  const alg = privateJWK["alg"];
+  const kid = privateJWK["kid"];
 
   /**
    * JWS HEADER

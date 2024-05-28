@@ -1,4 +1,5 @@
 import {
+  ClientKeysJWK,
   clearStorageGrantRequest,
   clearStorageGrantResponse,
   clearStorageInteractionExpirationTime,
@@ -6,7 +7,7 @@ import {
   getStorageGrantRequest,
   getStorageGrantResponse,
   getStorageTransactionURL,
-  setStorageClientPrivateJWK,
+  setStorageClientKeysJWK,
   setStorageGrantRequest,
   setStorageGrantResponse,
   setStorageInteractionExpirationTime,
@@ -18,12 +19,12 @@ import {
   GrantRequest,
   ClientKey,
   ProofMethod,
-  ECJWK,
   GrantResponse,
+  AccessTokenFlags,
 } from "../typescript-client";
 import { createJWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
-import { JWK } from "jose";
+import { normalizeClientKeysJWK } from "./clientJWK";
 
 /**
  * Send a GrantRequest, manage Response errors and route to the right flow based on the type of GrantResponse
@@ -40,7 +41,7 @@ import { JWK } from "jose";
 export async function fetchGrantResponse(
   transactionUrl: string,
   body: GrantRequest | ContinueRequestAfterInteraction,
-  privateJWK: JWK,
+  clientKeysJWK: ClientKeysJWK,
   boundAccessToken?: string // if the grant request is bound to an access token
 ): Promise<GrantResponse> {
   try {
@@ -60,47 +61,40 @@ export async function fetchGrantResponse(
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-2-6
      */
 
+    // normalizeClientKeysJWK() in fetchGrantResponse() so that it works even in the case the users wan to use fetchGrantResponse() directly
+    clientKeysJWK = normalizeClientKeysJWK(clientKeysJWK);
+
     /**
      * GrantRequest
      */
-    // let continuationAccessToken: string;
-    // GET proofMethod, independently if it is a first GrantRequest or a ContinueRequest After a Completed Interaction
 
-    // It could be checked if it a ContinueRequest by checking if there is a ContinueObject in the previous GrantResponse.
-    // This should be more general solution that just checking which kind of body is going to be sent
-    let grantRequest: GrantRequest;
+    // Read the proofMethod from the current GrantRequest if it is a first GrantRequest or from the previous GrantRequest saved in Storage if it is a ContinueRequest
+    // It can automatically configure the boundAccessToken
+    let grantRequest = body as GrantRequest;
     try {
-      const previousGrantResponse: GrantResponse = getStorageGrantResponse();
-      if (previousGrantResponse.continue) {
+      const continueObject = getStorageGrantResponse().continue;
+      if (continueObject) {
         grantRequest = getStorageGrantRequest();
-      } else {
-        grantRequest = body as GrantRequest;
+        // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
+        // (Section 2.3) in its request for access.
+        //
+        // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
+        if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key)
+          boundAccessToken = continueObject.access_token.value;
       }
-    } catch {
-      grantRequest = body as GrantRequest; // TODO: Fix here
+    } catch (e) {
+      console.log(e);
     }
 
-    // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
-    // (Section 2.3) in its request for access.
-    //
-    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
-
-    // if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key)
-    //   continuationAccessToken = continueObject.access_token.value;
-
     const proofMethod: ProofMethod = ((grantRequest.client as Client).key as ClientKey).proof.method;
-    const jwk = ((grantRequest.client as Client).key as ClientKey).jwk as ECJWK;
 
-    /**
-     * GrantRequest
-     */
+    // sign the request with the client's private key
     let requestInit: RequestInit;
     if (proofMethod === ProofMethod.JWS || proofMethod === ProofMethod.JWSD) {
       requestInit = await createJWSRequestInit(
         proofMethod,
         body,
-        jwk,
-        privateJWK,
+        clientKeysJWK.privateJWK,
         HTTPMethods.POST, // always POST?
         transactionUrl,
         boundAccessToken
@@ -239,6 +233,10 @@ export async function fetchGrantResponse(
      *
      */
 
+    /**
+     * MANAGE STORAGE and possible browser actions, based on which type of Grant Flow and which state in the flow
+     */
+
     // Continue object should be there to reconnect to the AS after the interaction
     // If not "Continue" in the GrantResponse => FINALIZED status
     if (grantResponse.continue && grantResponse.interact) {
@@ -261,7 +259,7 @@ export async function fetchGrantResponse(
       setStorageTransactionURL(transactionUrl);
       setStorageGrantRequest(body as GrantRequest);
       setStorageGrantResponse(grantResponse);
-      setStorageClientPrivateJWK(privateJWK);
+      setStorageClientKeysJWK(clientKeysJWK);
       /**
        *  3.3. Interaction Modes
        *
@@ -317,7 +315,8 @@ export async function fetchGrantResponse(
         throw new Error(notImplementedErrorText);
       }
     }
-    // if there has been stored some information before in Session and the state is APPROVED/FINALIZED
+    // specific for the Interaction Flow
+    // if there has been stored some information before in Session and the state is APPROVED/FINALIZED, then clean the Storage
     else if (getStorageTransactionURL() && (grantResponse.access_token || grantResponse.subject)) {
       /**
        *  3.2. Access Tokens
@@ -335,11 +334,10 @@ export async function fetchGrantResponse(
        * if the state is APPROVED => clear all but keep what is needed for renew the token
        */
 
-      // specific for the Interaction Flow
       clearStorageTransactionURL();
       clearStorageGrantRequest();
-      // GR is cleared here because there are other flows where the AS can answer directly with the access_token without
-      //needing an Interaction flow. For example:  1.6.5. Software-only Authorization, or pre-agreed keys?
+      // GrantResponse is cleared here because there are other flows where the AS can answer directly with the access_token without
+      // needing an Interaction flow. For example:  1.6.5. Software-only Authorization, or pre-agreed keys?
       clearStorageGrantResponse();
 
       // if the flow comes here, the interaction is finished
