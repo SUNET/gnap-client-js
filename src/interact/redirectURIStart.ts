@@ -1,7 +1,7 @@
-import { ClientKeysJWK, getStorageClientKeysJWK } from "../core/sessionStorage";
+import { StorageKeysJWK, getStorageClientKeysJWK } from "../core/sessionStorage";
 import { fetchGrantResponse } from "../core/fetchGrantResponse";
 import { Access, ECJWK, GrantRequest, GrantResponse, ProofMethod } from "../typescript-client";
-import { createClientKeysJWKPair, normalizeClientKeysJWK } from "../core/clientJWK";
+import { createClientKeysJWKPairES256, normalizeClientKeysJWK } from "../core/clientJWK";
 import { createRedirectURIGrantRequest } from "./createRedirectURIGrantRequest";
 
 /**
@@ -23,12 +23,12 @@ import { createRedirectURIGrantRequest } from "./createRedirectURIGrantRequest";
 
 export async function redirectURIStart(
   redirectUrl: string, // redirect-based interaction configuration
-  accessArray: Array<string | Access>, // scope to access, that will be passed to GrantRequest
+  accessArray: Array<string | Access>, // resources to access, that will be passed to GrantRequest
   // from here configuration related to generic GNAP protocol
   transactionUrl: string,
-  proofMethod: ProofMethod, // technical configuration exposed to user. Is it necessary? Use a default value?
-  clientKeysJWK?: ClientKeysJWK // allow the external application to pass the keys, it could be needed in the case when the keys are already agreed with the server
-): Promise<void> {
+  proofMethod: ProofMethod = ProofMethod.JWSD, // technical configuration exposed to user. Is it necessary? Use a default value?
+  clientKeysJWK?: StorageKeysJWK // allow the external application to pass the keys, it could be needed in the case when the keys are already agreed with the server
+): Promise<GrantResponse> {
   if (!transactionUrl || !redirectUrl) {
     throw new Error("Missing required parameters: transactionUrl, redirectUrl");
   }
@@ -42,7 +42,7 @@ export async function redirectURIStart(
       // if getStorageClientKeysJWK() throws an Error then there are no clientKeys in storage, so create new keys
       // fetchGrantResponse() will take care of saving the clientKeys in the Storage.
       // clientKeysJWK.publicJWK will be also part of GrantResponse, which will be also saved in GrantRequest
-      clientKeysJWK = await createClientKeysJWKPair("ES256");
+      clientKeysJWK = await createClientKeysJWKPairES256();
     }
   }
   // alg and kid are required in the clientKeysJWK. If they are not present, generate them
@@ -59,4 +59,6 @@ export async function redirectURIStart(
   const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, grantRequest, clientKeysJWK);
 
   // Nothing to return because it is expected to forward the browser to the redirect URI (in fetchGrantResponse())
+  // Return something anyhow to intercept errors or messages from the AS
+  return grantResponse;
 }

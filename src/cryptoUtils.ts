@@ -2,6 +2,9 @@ function dec2hex(dec: number) {
   return dec.toString(16).padStart(2, "0");
 }
 
+// The Crypto.getRandomValues() method lets you get cryptographically strong random values.
+// The array given as the parameter is filled with random numbers (random in its cryptographic meaning).
+// https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues
 export function generateNonce(len: number) {
   const arr = new Uint8Array((len || 40) / 2);
   window.crypto.getRandomValues(arr);

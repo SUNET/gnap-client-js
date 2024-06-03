@@ -1,12 +1,11 @@
 import {
-  ClientKeysJWK,
+  StorageKeysJWK,
   clearStorageGrantRequest,
   clearStorageGrantResponse,
   clearStorageInteractionExpirationTime,
   clearStorageTransactionURL,
   getStorageGrantRequest,
   getStorageGrantResponse,
-  getStorageTransactionURL,
   setStorageClientKeysJWK,
   setStorageGrantRequest,
   setStorageGrantResponse,
@@ -20,7 +19,6 @@ import {
   ClientKey,
   ProofMethod,
   GrantResponse,
-  AccessTokenFlags,
 } from "../typescript-client";
 import { createJWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "../utils";
@@ -41,7 +39,7 @@ import { normalizeClientKeysJWK } from "./clientJWK";
 export async function fetchGrantResponse(
   transactionUrl: string,
   body: GrantRequest | ContinueRequestAfterInteraction,
-  clientKeysJWK: ClientKeysJWK,
+  clientKeysJWK: StorageKeysJWK,
   boundAccessToken?: string // if the grant request is bound to an access token
 ): Promise<GrantResponse> {
   try {
@@ -75,12 +73,6 @@ export async function fetchGrantResponse(
       const continueObject = getStorageGrantResponse().continue;
       if (continueObject) {
         grantRequest = getStorageGrantRequest();
-        // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
-        // (Section 2.3) in its request for access.
-        //
-        // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
-        if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key)
-          boundAccessToken = continueObject.access_token.value;
       }
     } catch (e) {
       console.log(e);
@@ -239,7 +231,8 @@ export async function fetchGrantResponse(
 
     // Continue object should be there to reconnect to the AS after the interaction
     // If not "Continue" in the GrantResponse => FINALIZED status
-    if (grantResponse.continue && grantResponse.interact) {
+    //if (grantResponse.continue && grantResponse.interact) {
+    if (grantResponse.interact) {
       // save necessary data for interaction and continue - in all flows? or this is only for web browser flows?
       //  1.6.2. Redirect-based Interaction
       //    2.5.1.1. Redirect to an Arbitrary URI
@@ -317,7 +310,7 @@ export async function fetchGrantResponse(
     }
     // specific for the Interaction Flow
     // if there has been stored some information before in Session and the state is APPROVED/FINALIZED, then clean the Storage
-    else if (getStorageTransactionURL() && (grantResponse.access_token || grantResponse.subject)) {
+    else if (getStorageGrantResponse() && (grantResponse.access_token || grantResponse.subject)) {
       /**
        *  3.2. Access Tokens
        *

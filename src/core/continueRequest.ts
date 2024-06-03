@@ -1,6 +1,12 @@
-import { GrantResponse, ContinueRequestAfterInteraction, Continue, GrantRequest } from "../typescript-client";
+import {
+  GrantResponse,
+  ContinueRequestAfterInteraction,
+  Continue,
+  GrantRequest,
+  AccessTokenFlags,
+} from "../typescript-client";
 import { fetchGrantResponse } from "./fetchGrantResponse";
-import { ClientKeysJWK, getStorageClientKeysJWK } from "./sessionStorage";
+import { StorageKeysJWK, getStorageClientKeysJWK } from "./sessionStorage";
 
 /**
  * 5. Continuing a Grant Request
@@ -38,7 +44,6 @@ export async function continueRequest(
   body: GrantRequest | ContinueRequestAfterInteraction
 ): Promise<GrantResponse> {
   // in a continue request it is expected that there the Continue object is already been sent by the AS
-  //
 
   if (!continueObject.uri || !continueObject.access_token?.value) {
     throw new Error("continueObject.uri or continueObject.access_token.value is missing");
@@ -69,20 +74,26 @@ export async function continueRequest(
    *
    * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-5-4
    */
-  // let continuationAccessToken: string = "";
-  // if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key) {
-  //   continuationAccessToken = continueObject.access_token.value;
-  // }
-  const continuationAccessToken = continueObject.access_token.value;
 
-  const clientKeysJWK: ClientKeysJWK = getStorageClientKeysJWK();
+  let continuationAccessToken: string;
+  let keysJWK: StorageKeysJWK;
+  // If the bearer flag and the key field in this response are omitted, the token is bound the key used by the client instance
+  // (Section 2.3) in its request for access.
+  //
+  // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-10
+  if (!continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && !continueObject.access_token.key) {
+    continuationAccessToken = continueObject.access_token.value;
+    keysJWK = getStorageClientKeysJWK();
+    // If the bearer flag is omitted, and the key field is present, the token is bound to the key and proofing mechanism indicated in the key field.
+  } else if (continueObject.access_token.flags?.includes(AccessTokenFlags.BEARER) && continueObject.access_token.key) {
+    // The client software MUST reject any access token where the flags field contains the bearer flag and the key field is present with any value.
+    // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-3.2.1-11
+    throw new Error("Not valid access token");
+  } else {
+    throw new Error("Only continuation access token bound to client keys is implemented");
+  }
 
-  const grantResponse: GrantResponse = await fetchGrantResponse(
-    continueUrl,
-    body,
-    clientKeysJWK,
-    continuationAccessToken
-  );
+  const grantResponse: GrantResponse = await fetchGrantResponse(continueUrl, body, keysJWK, continuationAccessToken);
 
   return grantResponse;
 }

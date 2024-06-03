@@ -4,16 +4,8 @@ import { GrantRequest, GrantResponse } from "typescript-client";
 export const GRANT_REQUEST = "GrantRequest";
 export const GRANT_RESPONSE = "GrantResponse";
 export const INTERACTION_EXPIRATION_TIME = "InteractionExpirationTime";
-export const FINISH_NONCE = "FinishNonce";
 export const CLIENT_KEYS = "ClientKeysJWK";
-export const JSON_WEB_KEY = "JSONWebKey";
-export const KEY_ID = "KeyID";
-export const ALGORITHM = "Algorithm"; // it will be set to JWT key "alg"
-export const PRIVATE_KEY = "PrivateKey";
-export const PUBLIC_KEY = "PublicKey";
-export const PROOF_METHOD = "ProofMethod";
 export const TRANSACTION_URL = "TransactionURL";
-export const CALLBACK_CONFIG = "CallbackConfig";
 
 /**
  * 13.26. Storage of Information During Interaction and Continuation
@@ -32,23 +24,23 @@ export const CALLBACK_CONFIG = "CallbackConfig";
 // A.2.  Example Private Keys
 // https://datatracker.ietf.org/doc/html/rfc7517#appendix-A.2
 
-export type ClientKeysJWK = {
+export type StorageKeysJWK = {
   publicJWK: JWK;
   privateJWK: JWK;
 };
 
 // StorageClientKeysJWK
-export function setStorageClientKeysJWK(clientKeysJWK: ClientKeysJWK) {
-  sessionStorage.setItem(CLIENT_KEYS, JSON.stringify(clientKeysJWK));
+export function setStorageClientKeysJWK(storageKeysJWK: StorageKeysJWK) {
+  sessionStorage.setItem(CLIENT_KEYS, JSON.stringify(storageKeysJWK));
 }
 export function getStorageClientKeysJWK() {
-  const clientKeysJWKString = sessionStorage.getItem(CLIENT_KEYS);
-  if (!clientKeysJWKString) {
+  const storageKeysJWKString = sessionStorage.getItem(CLIENT_KEYS);
+  if (!storageKeysJWKString) {
     console.error("clientKeysJWK not found");
     throw new Error("no clientKeysJWK found");
   }
-  const clientKeysJWK: ClientKeysJWK = JSON.parse(clientKeysJWKString);
-  return clientKeysJWK;
+  const storageKeysJWK: StorageKeysJWK = JSON.parse(storageKeysJWKString);
+  return storageKeysJWK;
 }
 export function clearStorageClientKeysJWK() {
   sessionStorage.removeItem(CLIENT_KEYS);

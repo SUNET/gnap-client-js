@@ -1,13 +1,6 @@
 import { getEncodedHash } from "../cryptoUtils";
 import { CompactJWSHeaderParameters, CompactSign, JWK, importJWK } from "jose";
-import {
-  ContinueRequestAfterInteraction,
-  ECJWK,
-  GrantRequest,
-  ProofMethod,
-  RSAJWK,
-  SymmetricJWK,
-} from "../typescript-client";
+import { ContinueRequestAfterInteraction, GrantRequest, ProofMethod } from "../typescript-client";
 import { HTTPMethods } from "../utils";
 
 /**
@@ -71,8 +64,6 @@ export async function createJWSRequestInit(
   if (!privateJWK.alg || !privateJWK.kid) {
     throw new Error("createJWSRequestInit: publicJWK must have alg and kid");
   }
-  const alg = privateJWK["alg"];
-  const kid = privateJWK["kid"];
 
   /**
    * JWS HEADER
@@ -89,8 +80,8 @@ export async function createJWSRequestInit(
 
   const jwsHeader: CompactJWSHeaderParameters = {
     typ: typ,
-    alg: alg,
-    kid: kid,
+    alg: privateJWK.alg,
+    kid: privateJWK.kid,
     htm: htm, // linked to requestInit method
     uri: transactionUrl,
     created: Date.now(),
@@ -105,7 +96,7 @@ export async function createJWSRequestInit(
     jwsHeader.ath = accessTokenHash;
   }
 
-  const privateKey = await importJWK(privateJWK, alg);
+  const privateKeyLike = await importJWK(privateJWK, privateJWK.alg);
 
   let jws;
   // If the HTTP request has content, such as an HTTP POST or PUT method, the payload of the JWS object is the JSON serialized
@@ -114,19 +105,20 @@ export async function createJWSRequestInit(
   if (htm === HTTPMethods.POST || htm === HTTPMethods.PUT) {
     jws = await new CompactSign(new TextEncoder().encode(JSON.stringify(body)))
       .setProtectedHeader(jwsHeader)
-      .sign(privateKey);
+      .sign(privateKeyLike);
   } else {
     // If the request being made does not have content, such as an HTTP GET, OPTIONS, or DELETE method,
     // the JWS signature is calculated over an empty payload and passed in the Detached-JWS header as described in Section 7.3.3.
     // https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-7.3.4-9
     jws = await new CompactSign(new TextEncoder().encode(JSON.stringify("")))
       .setProtectedHeader(jwsHeader)
-      .sign(privateKey);
+      .sign(privateKeyLike);
   }
 
   /**
-   * Request Init object by JWS types
+   * Request Init object
    */
+  // Configure the headers and payload based on the JWS type
   let headers;
   let payload;
 

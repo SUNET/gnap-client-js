@@ -1,7 +1,7 @@
-import { ECJWK, KeyType } from "../typescript-client";
+import { KeyType } from "../typescript-client";
 import { generateNonce } from "../cryptoUtils";
-import { GenerateKeyPairOptions, JWK, exportJWK, generateKeyPair } from "jose";
-import { ClientKeysJWK } from "./sessionStorage";
+import { GenerateKeyPairOptions, exportJWK, generateKeyPair } from "jose";
+import { StorageKeysJWK } from "./sessionStorage";
 
 /**
  *  13.5. Protection of Client Instance Key Material
@@ -40,11 +40,8 @@ import { ClientKeysJWK } from "./sessionStorage";
  *
  * @returns publicJWK, privateJWK
  */
-export async function createClientKeysJWKPair(alg: string = "ES256"): Promise<ClientKeysJWK> {
-  if (alg !== "ES256") {
-    throw new Error("Invalid algorithm");
-  }
-  //const alg = "ES256";
+export async function createClientKeysJWKPairES256(): Promise<StorageKeysJWK> {
+  const alg = "ES256";
   const gpo: GenerateKeyPairOptions = {
     crv: "25519",
     extractable: true,
@@ -111,8 +108,8 @@ export async function createClientKeysJWKPair(alg: string = "ES256"): Promise<Cl
  * @param clientKeysJWK
  * @returns
  */
-export function normalizeClientKeysJWK(clientKeysJWK: ClientKeysJWK): ClientKeysJWK {
-  const { publicJWK, privateJWK } = clientKeysJWK;
+export function normalizeClientKeysJWK(storageKeysJWK: StorageKeysJWK): StorageKeysJWK {
+  const { publicJWK, privateJWK } = storageKeysJWK;
   /**
    * RFC 7518 - JSON Web Algorithms (JWA)
    *
