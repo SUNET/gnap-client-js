@@ -21,8 +21,8 @@ import {
   GrantResponse,
 } from "../typescript-client";
 import { createJWSRequestInit } from "./securedRequestInit";
-import { HTTPMethods } from "../utils";
-import { normalizeClientKeysJWK } from "./clientJWK";
+import { HTTPMethods } from "./utils";
+import { validateClientKeysJWK } from "./clientKeys";
 
 /**
  * Send a GrantRequest, manage Response errors and route to the right flow based on the type of GrantResponse
@@ -37,10 +37,11 @@ import { normalizeClientKeysJWK } from "./clientJWK";
  * @returns
  */
 export async function fetchGrantResponse(
-  transactionUrl: string,
+  htm: HTTPMethods, // POST for new GrantRequest/Continue, PATCH for modify previous GrantRequests
+  url: string,
   body: GrantRequest | ContinueRequestAfterInteraction,
   clientKeysJWK: StorageKeysJWK,
-  boundAccessToken?: string // if the grant request is bound to an access token
+  boundAccessToken?: string
 ): Promise<GrantResponse> {
   try {
     /**
@@ -59,15 +60,16 @@ export async function fetchGrantResponse(
      * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20/#section-2-6
      */
 
-    // normalizeClientKeysJWK() in fetchGrantResponse() so that it works even in the case the users wan to use fetchGrantResponse() directly
-    clientKeysJWK = normalizeClientKeysJWK(clientKeysJWK);
+    // validation works for also for externally generated keys
+    validateClientKeysJWK(clientKeysJWK);
 
     /**
      * GrantRequest
      */
 
     // Read the proofMethod from the current GrantRequest if it is a first GrantRequest or from the previous GrantRequest saved in Storage if it is a ContinueRequest
-    // It can automatically configure the boundAccessToken
+    // It can automatically configure the boundAccessToken ????
+    // Up to which level should it be automatized when the user will directly manage the flow?
     let grantRequest = body as GrantRequest;
     try {
       const continueObject = getStorageGrantResponse().continue;
@@ -83,19 +85,12 @@ export async function fetchGrantResponse(
     // sign the request with the client's private key
     let requestInit: RequestInit;
     if (proofMethod === ProofMethod.JWS || proofMethod === ProofMethod.JWSD) {
-      requestInit = await createJWSRequestInit(
-        proofMethod,
-        body,
-        clientKeysJWK.privateJWK,
-        HTTPMethods.POST, // always POST?
-        transactionUrl,
-        boundAccessToken
-      );
+      requestInit = await createJWSRequestInit(proofMethod, body, clientKeysJWK.privateJWK, htm, url, boundAccessToken);
     } else {
       throw new Error("ProofMethod not supported");
     }
 
-    const response = await fetch(transactionUrl, requestInit);
+    const response = await fetch(url, requestInit);
 
     /**
      * 3.6. Error Response
@@ -249,7 +244,7 @@ export async function fetchGrantResponse(
        * 4.2.1. Completing Interaction with a Browser Redirect to the Callback URI
        * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#name-completing-interaction-with
        */
-      setStorageTransactionURL(transactionUrl);
+      setStorageTransactionURL(url);
       setStorageGrantRequest(body as GrantRequest);
       setStorageGrantResponse(grantResponse);
       setStorageClientKeysJWK(clientKeysJWK);

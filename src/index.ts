@@ -12,4 +12,4 @@ export { sayHi };
 
 export * from "./typescript-client";
 export * from "./interact/redirectURIStart";
-export * from "./interact/redirectURICallback";
+export * from "./interact/redirectURIFinish";

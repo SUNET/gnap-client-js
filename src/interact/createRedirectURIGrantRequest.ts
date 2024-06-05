@@ -1,4 +1,4 @@
-import { generateNonce } from "../cryptoUtils";
+import { generateNonce } from "../core/cryptoUtils";
 import {
   Access,
   AccessTokenFlags,

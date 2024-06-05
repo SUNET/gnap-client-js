@@ -47,6 +47,13 @@ export function clearStorageClientKeysJWK() {
 }
 
 // Transaction URL
+
+/**
+ * The grant endpoint is a URI that uniquely identifies the AS to client
+ * instances and serves as the identifier for the AS.
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-2-1
+ */
 export function setStorageTransactionURL(transactionURL: string) {
   sessionStorage.setItem(TRANSACTION_URL, transactionURL);
 }

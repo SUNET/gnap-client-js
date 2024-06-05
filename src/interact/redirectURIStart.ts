@@ -1,8 +1,9 @@
 import { StorageKeysJWK, getStorageClientKeysJWK } from "../core/sessionStorage";
 import { fetchGrantResponse } from "../core/fetchGrantResponse";
 import { Access, ECJWK, GrantRequest, GrantResponse, ProofMethod } from "../typescript-client";
-import { createClientKeysJWKPairES256, normalizeClientKeysJWK } from "../core/clientJWK";
+import { createClientKeysJWKPairES256 } from "../core/clientKeys";
 import { createRedirectURIGrantRequest } from "./createRedirectURIGrantRequest";
+import { HTTPMethods } from "../core/utils";
 
 /**
  *  1.6.2. Redirect-based Interaction
@@ -45,9 +46,6 @@ export async function redirectURIStart(
       clientKeysJWK = await createClientKeysJWKPairES256();
     }
   }
-  // alg and kid are required in the clientKeysJWK. If they are not present, generate them
-  // Should normalizeClientKeysJWK() moved to fetchGrantResponse() to be more general?
-  clientKeysJWK = normalizeClientKeysJWK(clientKeysJWK);
 
   const grantRequest: GrantRequest = createRedirectURIGrantRequest(
     redirectUrl,
@@ -56,7 +54,12 @@ export async function redirectURIStart(
     clientKeysJWK.publicJWK as ECJWK
   );
 
-  const grantResponse: GrantResponse = await fetchGrantResponse(transactionUrl, grantRequest, clientKeysJWK);
+  const grantResponse: GrantResponse = await fetchGrantResponse(
+    HTTPMethods.POST,
+    transactionUrl,
+    grantRequest,
+    clientKeysJWK
+  );
 
   // Nothing to return because it is expected to forward the browser to the redirect URI (in fetchGrantResponse())
   // Return something anyhow to intercept errors or messages from the AS

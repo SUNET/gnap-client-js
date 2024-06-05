@@ -1,7 +1,7 @@
-import { getEncodedHash } from "../cryptoUtils";
+import { getEncodedHash } from "./cryptoUtils";
 import { CompactJWSHeaderParameters, CompactSign, JWK, importJWK } from "jose";
 import { ContinueRequestAfterInteraction, GrantRequest, ProofMethod } from "../typescript-client";
-import { HTTPMethods } from "../utils";
+import { HTTPMethods } from "./utils";
 
 /**
  * 7. Securing Requests from the Client Instance
@@ -75,8 +75,8 @@ export async function createJWSRequestInit(
 
   // set right typ for the jwsHeader
   let typ;
-  if (jwsType === ProofMethod.JWS) typ = "gnap-binding+jws"; // "gnap-binding-jws" from version 19: Updated JOSE types to no longer use subtypes  https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#appendix-A-2.2.2.2.1
-  if (jwsType === ProofMethod.JWSD) typ = "gnap-binding+jwsd";
+  if (jwsType === ProofMethod.JWS) typ = "gnap-binding-jws";
+  if (jwsType === ProofMethod.JWSD) typ = "gnap-binding-jwsd";
 
   const jwsHeader: CompactJWSHeaderParameters = {
     typ: typ,

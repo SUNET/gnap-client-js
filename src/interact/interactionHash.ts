@@ -1,4 +1,4 @@
-import { getEncodedHash } from "../cryptoUtils";
+import { getEncodedHash } from "../core/cryptoUtils";
 
 /**
  *  4.2.3. Calculating the interaction hash

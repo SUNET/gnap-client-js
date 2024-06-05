@@ -1,7 +1,7 @@
 import { getStorageGrantRequest, getStorageGrantResponse, getStorageTransactionURL } from "../core/sessionStorage";
-import { continueRequest } from "../core/continueRequest";
 import { Continue, ContinueRequestAfterInteraction, GrantResponse } from "../typescript-client";
 import { getInteractionHash } from "./interactionHash";
+import { continueRequest } from "../core/continueRequest";
 
 /**
  *  4.2.1. Completing Interaction with a Browser Redirect to the Callback URI
@@ -12,7 +12,7 @@ import { getInteractionHash } from "./interactionHash";
  *
  * @returns
  */
-export async function redirectURICallback(): Promise<GrantResponse> {
+export async function redirectURIFinish(): Promise<GrantResponse> {
   // the client can self-configure, by reading the values of GrantRequest and GrantResponse
   // Expected to find SessionStorage because it is a Redirect-based Interaction flow
   const grantRequest = getStorageGrantRequest();
@@ -73,9 +73,6 @@ export async function redirectURICallback(): Promise<GrantResponse> {
 
   const grantResponse: GrantResponse = await continueRequest(continueObject, continueRequestAfterInteractionBody);
 
-  // Keep the specific interaction flow logic in the "outer" function layer (not in core)
-
-  // TODO: Verify that GrantResponse contains the access token, to consider successful the flow
   /**
    * If the AS has successfully granted one or more access tokens to the client instance, the AS responds
    * with the access_token field. This field contains either a single access token as described in Section 3.2.1

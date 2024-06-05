@@ -1,5 +1,5 @@
 import { KeyType } from "../typescript-client";
-import { generateNonce } from "../cryptoUtils";
+import { generateNonce } from "./cryptoUtils";
 import { GenerateKeyPairOptions, exportJWK, generateKeyPair } from "jose";
 import { StorageKeysJWK } from "./sessionStorage";
 
@@ -38,6 +38,8 @@ import { StorageKeysJWK } from "./sessionStorage";
 /**
  * This is a wrap function to configure JOSE generateKeyPair() for ES256 and returns keys in JWK format
  *
+ * Returns keys normalized already with alg and kid
+ *
  * @returns publicJWK, privateJWK
  */
 export async function createClientKeysJWKPairES256(): Promise<StorageKeysJWK> {
@@ -51,21 +53,21 @@ export async function createClientKeysJWKPairES256(): Promise<StorageKeysJWK> {
   const privateJWK = await exportJWK(privateKey);
   const publicJWK = await exportJWK(publicKey);
 
-  return { publicJWK, privateJWK };
+  return normalizeClientKeysJWK({ publicJWK, privateJWK });
 }
 
 /**
  * RFC 7517 - JSON Web Key (JWK)
  *
  * 4.  JSON Web Key (JWK) Format
- * 
+ *
    A JWK is a JSON object that represents a cryptographic key.  The
    members of the object represent properties of the key, including its
    value.
 
  * https://datatracker.ietf.org/doc/html/rfc7517#section-4
- * 
- * 
+ *
+ *
  * 4.4.  "alg" (Algorithm) Parameter
 
    The "alg" (algorithm) parameter identifies the algorithm intended for
@@ -158,4 +160,26 @@ export function normalizeClientKeysJWK(storageKeysJWK: StorageKeysJWK): StorageK
   }
 
   return { publicJWK, privateJWK };
+}
+
+/**
+ * 7.1. Key Formats
+ *
+ *  jwk (object): The public key and its properties represented as a JSON Web Key [RFC7517].
+ *                A JWK MUST contain the alg (Algorithm) and kid (Key ID) parameters. The alg parameter MUST NOT be "none".
+ *
+ * https://datatracker.ietf.org/doc/html/draft-ietf-gnap-core-protocol-20#section-7.1-5.2.1
+ *
+ *
+ * @param clientKeysJWK
+ * @returns
+ */
+export function validateClientKeysJWK(storageKeysJWK: StorageKeysJWK): void {
+  const { publicJWK, privateJWK } = storageKeysJWK;
+  if (!publicJWK.kid || !privateJWK.kid || publicJWK.kid !== privateJWK.kid) {
+    throw new Error("Valid ClientKeys kid is required");
+  }
+  if (!publicJWK.alg || !privateJWK.alg || publicJWK.alg !== privateJWK.alg) {
+    throw new Error("Valid ClientKeys alg is required");
+  }
 }
