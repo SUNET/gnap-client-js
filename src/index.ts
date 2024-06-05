@@ -1,7 +1,7 @@
 export const add = (a: number, b: number) => a + b;
 export const sub = (a: number, b: number) => a - b;
 
-export { continueRequest } from "./core/continueRequest";
+export { continueGrantRequest } from "./core/continueGrantRequest";
 export { fetchGrantResponse } from "./core/fetchGrantResponse";
 
 function sayHi(name = "there") {
@@ -11,5 +11,5 @@ function sayHi(name = "there") {
 export { sayHi };
 
 export * from "./typescript-client";
-export * from "./interact/redirectURIStart";
-export * from "./interact/redirectURIFinish";
+export * from "./interact/redirectURI/redirectURIStart";
+export * from "./interact/redirectURI/redirectURIFinish";

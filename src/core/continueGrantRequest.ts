@@ -4,6 +4,7 @@ import {
   Continue,
   GrantRequest,
   AccessTokenFlags,
+  ProofMethod,
 } from "../typescript-client";
 import { fetchGrantResponse } from "./fetchGrantResponse";
 import { StorageKeysJWK, getStorageClientKeysJWK } from "./sessionStorage";
@@ -44,7 +45,8 @@ import { HTTPMethods } from "./utils";
  * @param interactRef
  * @returns
  */
-export async function continueRequest(
+export async function continueGrantRequest(
+  proofMethod: ProofMethod,
   continueObject: Continue,
   body: GrantRequest | ContinueRequestAfterInteraction
 ): Promise<GrantResponse> {
@@ -102,6 +104,7 @@ export async function continueRequest(
     HTTPMethods.POST,
     continueUrl,
     body,
+    proofMethod,
     clientKeysJWK,
     continuationAccessToken
   );

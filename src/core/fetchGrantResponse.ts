@@ -4,7 +4,6 @@ import {
   clearStorageGrantResponse,
   clearStorageInteractionExpirationTime,
   clearStorageTransactionURL,
-  getStorageGrantRequest,
   getStorageGrantResponse,
   setStorageClientKeysJWK,
   setStorageGrantRequest,
@@ -12,14 +11,7 @@ import {
   setStorageInteractionExpirationTime,
   setStorageTransactionURL,
 } from "./sessionStorage";
-import {
-  Client,
-  ContinueRequestAfterInteraction,
-  GrantRequest,
-  ClientKey,
-  ProofMethod,
-  GrantResponse,
-} from "../typescript-client";
+import { ContinueRequestAfterInteraction, GrantRequest, ProofMethod, GrantResponse } from "../typescript-client";
 import { createJWSRequestInit } from "./securedRequestInit";
 import { HTTPMethods } from "./utils";
 import { validateClientKeysJWK } from "./clientKeys";
@@ -40,6 +32,7 @@ export async function fetchGrantResponse(
   htm: HTTPMethods, // POST for new GrantRequest/Continue, PATCH for modify previous GrantRequests
   url: string,
   body: GrantRequest | ContinueRequestAfterInteraction,
+  proofMethod: ProofMethod,
   clientKeysJWK: StorageKeysJWK,
   boundAccessToken?: string
 ): Promise<GrantResponse> {
@@ -66,21 +59,6 @@ export async function fetchGrantResponse(
     /**
      * GrantRequest
      */
-
-    // Read the proofMethod from the current GrantRequest if it is a first GrantRequest or from the previous GrantRequest saved in Storage if it is a ContinueRequest
-    // It can automatically configure the boundAccessToken ????
-    // Up to which level should it be automatized when the user will directly manage the flow?
-    let grantRequest = body as GrantRequest;
-    try {
-      const continueObject = getStorageGrantResponse().continue;
-      if (continueObject) {
-        grantRequest = getStorageGrantRequest();
-      }
-    } catch (e) {
-      console.log(e);
-    }
-
-    const proofMethod: ProofMethod = ((grantRequest.client as Client).key as ClientKey).proof.method;
 
     // sign the request with the client's private key
     let requestInit: RequestInit;

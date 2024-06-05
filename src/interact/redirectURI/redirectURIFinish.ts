@@ -1,7 +1,14 @@
-import { getStorageGrantRequest, getStorageGrantResponse, getStorageTransactionURL } from "../core/sessionStorage";
-import { Continue, ContinueRequestAfterInteraction, GrantResponse } from "../typescript-client";
-import { getInteractionHash } from "./interactionHash";
-import { continueRequest } from "../core/continueRequest";
+import { getStorageGrantRequest, getStorageGrantResponse, getStorageTransactionURL } from "../../core/sessionStorage";
+import {
+  Client,
+  ClientKey,
+  Continue,
+  ContinueRequestAfterInteraction,
+  GrantResponse,
+  ProofMethod,
+} from "../../typescript-client";
+import { getInteractionHash } from "../interactionHash";
+import { continueGrantRequest } from "../../core/continueGrantRequest";
 
 /**
  *  4.2.1. Completing Interaction with a Browser Redirect to the Callback URI
@@ -69,9 +76,15 @@ export async function redirectURIFinish(): Promise<GrantResponse> {
     interact_ref: interactRef,
   };
 
+  const proofMethod: ProofMethod = ((grantRequest.client as Client).key as ClientKey).proof.method;
+
   const continueObject: Continue = previousGrantResponse.continue;
 
-  const grantResponse: GrantResponse = await continueRequest(continueObject, continueRequestAfterInteractionBody);
+  const grantResponse: GrantResponse = await continueGrantRequest(
+    proofMethod,
+    continueObject,
+    continueRequestAfterInteractionBody
+  );
 
   /**
    * If the AS has successfully granted one or more access tokens to the client instance, the AS responds

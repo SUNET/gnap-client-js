@@ -1,4 +1,4 @@
-import { generateNonce } from "../core/cryptoUtils";
+import { generateNonce } from "../../core/cryptoUtils";
 import {
   Access,
   AccessTokenFlags,
@@ -14,7 +14,7 @@ import {
   SubjectAssertionFormat,
   SubjectRequest,
   SymmetricJWK,
-} from "../typescript-client";
+} from "../../typescript-client";
 
 /**
  *  2. Requesting Access

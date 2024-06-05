@@ -1,9 +1,9 @@
-import { StorageKeysJWK, getStorageClientKeysJWK } from "../core/sessionStorage";
-import { fetchGrantResponse } from "../core/fetchGrantResponse";
-import { Access, ECJWK, GrantRequest, GrantResponse, ProofMethod } from "../typescript-client";
-import { createClientKeysJWKPairES256 } from "../core/clientKeys";
+import { StorageKeysJWK, getStorageClientKeysJWK } from "../../core/sessionStorage";
+import { fetchGrantResponse } from "../../core/fetchGrantResponse";
+import { Access, ECJWK, GrantRequest, GrantResponse, ProofMethod } from "../../typescript-client";
+import { createClientKeysJWKPairES256 } from "../../core/clientKeys";
 import { createRedirectURIGrantRequest } from "./createRedirectURIGrantRequest";
-import { HTTPMethods } from "../core/utils";
+import { HTTPMethods } from "../../core/utils";
 
 /**
  *  1.6.2. Redirect-based Interaction
@@ -58,6 +58,7 @@ export async function redirectURIStart(
     HTTPMethods.POST,
     transactionUrl,
     grantRequest,
+    proofMethod,
     clientKeysJWK
   );
 
